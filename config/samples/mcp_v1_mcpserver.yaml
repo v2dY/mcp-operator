@@ -1,0 +1,10 @@
+apiVersion: mcp.my.domain/v1
+kind: MCPServer
+metadata:
+  labels:
+    app.kubernetes.io/name: operator
+    app.kubernetes.io/managed-by: kustomize
+  name: mcpserver-sample111
+spec:
+  replicas: 2
+  url: "https://petstore.swagger.io/v2/swagger.json"

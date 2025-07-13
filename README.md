@@ -21,6 +21,7 @@ This approach is especially useful in agentic systems where an LLM-driven agent 
 
 ## Demo
 [Video](media/demo.mp4)
+
 [Code](docs/demo.yml)
 ## Install
 ```bash
@@ -51,6 +52,7 @@ example [CRD](config/samples//mcp_v1_mcpserver.yaml)
 
 ## Docs
  [ADR-001](docs/adr/ADR-001.md)
+ 
  [HLD](docs/HLD.md)
 
 # Development

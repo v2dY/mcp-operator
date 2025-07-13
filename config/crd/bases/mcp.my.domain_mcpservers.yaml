@@ -39,6 +39,8 @@ spec:
           spec:
             description: MCPServerSpec defines the desired state of MCPServer.8443
             properties:
+              basePath:
+                type: string
               deploymentName:
                 type: string
               replicas:

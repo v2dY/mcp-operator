@@ -34,6 +34,7 @@ type MCPServerSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	Replicas int32  `json:"replicas,omitempty"`
 	Url      string `json:"url,omitempty"`
+	BasePath string `json:"basePath,omitempty"`
 }
 
 // MCPServerStatus defines the observed state of MCPServer.

@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,6 +45,7 @@ type MCPServerReconciler struct {
 const (
 	// typeAvailableMCPServer represents the status of the Deployment reconciliation
 	typeAvailableMCPServer = "Available"
+	labelAppName           = "project"
 )
 
 // +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers,verbs=get;list;watch;create;update;patch;delete
@@ -52,6 +54,7 @@ const (
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -94,7 +97,6 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// so that we have the latest state of the resource on the cluster and we will avoid
 		// raising the error "the object has been modified, please apply
 		// your changes to the latest version and try again" which would re-trigger the reconciliation
-		// if we try to update it again in the following operations
 		if err := r.Get(ctx, req.NamespacedName, mcpServer); err != nil {
 			log.Error(err, "Failed to re-fetch mcp server")
 			return ctrl.Result{}, err
@@ -190,6 +192,31 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	// Check if the service already exists, if not create a new one
+	service := &corev1.Service{}
+	err = r.Get(ctx, types.NamespacedName{Name: mcpServer.Name, Namespace: mcpServer.Namespace}, service)
+	if err != nil && apierrors.IsNotFound(err) {
+		// Define a new service
+		svc, err := r.serviceForMCPServer(mcpServer)
+		if err != nil {
+			log.Error(err, "Failed to define new Service resource for MCPServer")
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Creating a new Service",
+			"Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
+		if err = r.Create(ctx, svc); err != nil {
+			log.Error(err, "Failed to create new Service",
+				"Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
+			return ctrl.Result{}, err
+		}
+		// Service created successfully, requeue to ensure state
+		return ctrl.Result{RequeueAfter: time.Minute}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get Service")
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -206,7 +233,8 @@ func (r *MCPServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *MCPServerReconciler) deploymentForMCPServer(
 	mcpServer *mcpv1.MCPServer) (*appsv1.Deployment, error) {
 	replicas := mcpServer.Spec.Replicas
-	image := "hashicorp/http-echo:1.0"
+	// TODO: build image somehow inside k8s
+	image := "sarco3t/openapi-mcp-generator:1.0.3"
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -216,11 +244,11 @@ func (r *MCPServerReconciler) deploymentForMCPServer(
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app.kubernetes.io/name": "project"},
+				MatchLabels: map[string]string{"app.kubernetes.io/name": labelAppName},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app.kubernetes.io/name": "project"},
+					Labels: map[string]string{"app.kubernetes.io/name": labelAppName},
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
@@ -246,9 +274,9 @@ func (r *MCPServerReconciler) deploymentForMCPServer(
 							},
 						},
 						Ports: []corev1.ContainerPort{{
-							ContainerPort: 5678,
-							Name:          "mcp",
+							ContainerPort: 3001,
 						}},
+						Args: []string{mcpServer.Spec.Url, mcpServer.Spec.BasePath},
 					}},
 				},
 			},
@@ -261,4 +289,46 @@ func (r *MCPServerReconciler) deploymentForMCPServer(
 		return nil, err
 	}
 	return dep, nil
+}
+
+// TODO: Potential improvements for Service spec:
+// 1. Add ServiceSpec to MCPServer CRD to allow users to configure:
+//   - Service type (ClusterIP, NodePort, LoadBalancer)
+//   - Port configurations (name, port, targetPort, protocol)
+//   - External IPs
+//   - Session affinity settings
+//   - Load balancer source ranges
+//
+// 2. Add validation for Service spec in the controller
+// 3. Add support for multiple ports if needed
+// 4. Add annotations and labels configuration
+// 5. Add support for headless services
+// 6. Add support for service mesh integration (e.g., Istio)
+// serviceForMCPServer returns a Service for the MCPServer Deployment
+func (r *MCPServerReconciler) serviceForMCPServer(mcpServer *mcpv1.MCPServer) (*corev1.Service, error) {
+	labels := map[string]string{"app.kubernetes.io/name": labelAppName}
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      mcpServer.Name,
+			Namespace: mcpServer.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: labels,
+			Ports: []corev1.ServicePort{{
+				Port:       3001,
+				TargetPort: intstrFromInt(3001),
+				Protocol:   corev1.ProtocolTCP,
+			}},
+			Type: corev1.ServiceTypeClusterIP,
+		},
+	}
+	if err := ctrl.SetControllerReference(mcpServer, svc, r.Scheme); err != nil {
+		return nil, err
+	}
+	return svc, nil
+}
+
+// intstrFromInt is a helper for TargetPort
+func intstrFromInt(i int) intstr.IntOrString {
+	return intstr.IntOrString{Type: intstr.Int, IntVal: int32(i)}
 }

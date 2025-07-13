@@ -26,3 +26,6 @@ tmp/*
 *.swp
 *.swo
 *~
+helm/
+dist
+helm-*.tgz

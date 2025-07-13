@@ -1,8 +1,61 @@
-# operator
-// TODO(user): Add simple overview of use/purpose
+# Kubernetes MCP generator operator
+The MCP Generator Operator simplifies the development of agentic applications by automating the creation of a protocol layer between AI agents and existing systems that expose HTTP APIs. By parsing OpenAPI specifications and generating a Model Context Protocol (MCP), it enables seamless, structured interaction between autonomous agents and external services, accelerating integration and reducing manual overhead.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+The MCP (Model Context Protocol) Generator Operator is designed to streamline the integration of AI agents with existing web services in Kubernetes environments. It automates the generation of protocol layers that act as an interface between autonomous agents and services defined by HTTP APIs, such as RESTful backends and microservices.
+
+At its core, the operator watches for custom Kubernetes resources that specify an OpenAPI specification, Upon detecting a new specification, it automatically triggers code generation workflows—using tools like OpenAPI Generator—to produce a context-aware agent interface layer. This layer standardizes how agents interact with APIs, ensuring consistent, structured communication.
+
+This approach is especially useful in agentic systems where an LLM-driven agent must query, invoke, or reason about external APIs. Instead of manually writing boilerplate wrappers or SDKs, developers can declaratively define API sources and let the operator handle the rest.
+
+### Use Cases
+
+* Accelerating development of AI-native applications by reducing API integration overhead.
+
+ * Enabling autonomous systems to reliably and safely interact with microservices or legacy systems via OpenAPI-based interfaces.
+
+ * Maintaining consistent communication patterns across multiple services or environments without manual intervention.
+
+ * By embedding the generation and deployment of these interface layers directly into the Kubernetes workflow, the MCP Generator Operator bridges the gap between large language models and existing infrastructure.
+
+## Demo
+[Video](media/demo.mp4)
+[Code](docs/demo.yml)
+## Install
+```bash
+helm install release-name oci://ghcr.io/v2dy/project/chart/helm:0.1.0
+```
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: mcp.my.domain/v1
+kind: MCPServer
+metadata:
+  namespace: default
+  labels:
+    app.kubernetes.io/name: operator
+    app.kubernetes.io/managed-by: kustomize
+  name: mcpserver-sample4
+spec:
+  replicas: 1
+  url: "https://raw.githubusercontent.com/open-meteo/open-meteo/refs/heads/main/openapi.yml"
+  basePath: "https://api.open-meteo.com"
+EOF
+
+```
+example [CRD](config/samples//mcp_v1_mcpserver.yaml)
+
+
+## Demo
+
+## Docs
+ [ADR-001](docs/adr/ADR-001.md)
+ [HLD](docs/HLD.md)
+
+# Development
+
+
 
 ## Getting Started
 

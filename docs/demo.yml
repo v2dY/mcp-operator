@@ -1,0 +1,51 @@
+apiVersion: mcp.my.domain/v1
+kind: MCPServer
+metadata:
+  namespace: default
+  labels:
+    app.kubernetes.io/name: operator
+    app.kubernetes.io/managed-by: kustomize
+  name: weather-mcp-server1
+spec:
+  replicas: 1
+  url: "https://raw.githubusercontent.com/open-meteo/open-meteo/refs/heads/main/openapi.yml"
+  basePath: "https://api.open-meteo.com"
+---
+apiVersion: kagent.dev/v1alpha1
+kind: ToolServer
+metadata:
+  name: weather-forecast-tool-server1
+  namespace: default
+spec:
+  description: Fetches weather forecast
+  config:
+    sse:
+      url: http://weather-mcp-server.default.svc.cluster.local:3001/sse
+---
+apiVersion: kagent.dev/v1alpha1
+kind: Agent
+metadata:
+  name: weather-forecast-agent1
+  namespace: default
+spec:
+  description: This is an A2A test helm agent
+  modelConfig: default/openai-gpt-4-1
+  systemMessage: |-
+    You're a helpful agent, made by the kagent team.
+
+    # Instructions
+        - If user question is unclear, ask for clarification before running any tools
+        - Always be helpful and friendly
+        - If you don't know how to answer the question DO NOT make things up, tell the user "Sorry, I don't know how to answer that" and ask them to clarify the question further
+        - If you are unable to help, or something goes wrong, refer the user to https://kagent.dev for more information or support.
+
+    # Response format:
+        - ALWAYS format your response as Markdown
+        - Your response will include a summary of actions you took and an explanation of the result
+        - If you created any artifacts such as files or resources, you will include those in your response as well
+  tools:
+  - mcpServer:
+      toolServer: default/weather-forecast-tool-server
+      toolNames:
+      - GetV1Forecast
+    type: McpServer

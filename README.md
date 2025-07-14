@@ -53,7 +53,7 @@ example [CRD](config/samples//mcp_v1_mcpserver.yaml)
 ## Docs
  [ADR-001](docs/adr/ADR-001.md)
  
- [HLD](docs/HLD.md)
+ [HLD](HLD.md)
 
 # Development
 

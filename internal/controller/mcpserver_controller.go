@@ -234,7 +234,10 @@ func (r *MCPServerReconciler) deploymentForMCPServer(
 	mcpServer *mcpv1.MCPServer) (*appsv1.Deployment, error) {
 	replicas := mcpServer.Spec.Replicas
 	// TODO: build image somehow inside k8s
-	image := "sarco3t/openapi-mcp-generator:1.0.3"
+	image := "sarco3t/openapi-mcp-generator:1.0.6"
+
+	// Set default ImagePullPolicy to Always if not specified
+	imagePullPolicy := corev1.PullIfNotPresent
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -260,7 +263,7 @@ func (r *MCPServerReconciler) deploymentForMCPServer(
 					Containers: []corev1.Container{{
 						Image:           image,
 						Name:            "mcp",
-						ImagePullPolicy: corev1.PullIfNotPresent,
+						ImagePullPolicy: imagePullPolicy,
 						// Ensure restrictive context for the container
 						// More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
 						SecurityContext: &corev1.SecurityContext{
@@ -276,6 +279,7 @@ func (r *MCPServerReconciler) deploymentForMCPServer(
 						Ports: []corev1.ContainerPort{{
 							ContainerPort: 3001,
 						}},
+						Env:  mcpServer.Spec.Env,
 						Args: []string{mcpServer.Spec.Url, mcpServer.Spec.BasePath},
 					}},
 				},

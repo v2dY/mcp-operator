@@ -2,7 +2,7 @@ FROM node:22-slim
 
 WORKDIR /app
 RUN apt update && apt install -y wget
-RUN npm install -g openapi-mcp-generator@3.1.4
+RUN npm i -g https://github.com/sarco3t/openapi-mcp-generator/releases/download/v3.1.6/openapi-mcp-generator-3.1.6.tgz
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser

@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -ex
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <openapi_yaml_url> [base_path]"

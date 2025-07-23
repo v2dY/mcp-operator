@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,6 +36,11 @@ type MCPServerSpec struct {
 	Replicas int32  `json:"replicas,omitempty"`
 	Url      string `json:"url,omitempty"`
 	BasePath string `json:"basePath,omitempty"`
+	// +optional
+	// +optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
+	// +optional
+	// Containers []corev1.Container `json:"containers,omitempty"`
 }
 
 // MCPServerStatus defines the observed state of MCPServer.

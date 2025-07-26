@@ -123,6 +123,8 @@ docker-kind-load: ## Load docker image with the manager.
 
 helm: build-installer
 	cat dist/install.yaml | helmify helm
+	sed -i '/^[[:space:]]*app\.kubernetes\.io\/name: operator$$/d' helm/templates/deployment.yaml
+	sed -i '/^[[:space:]]*control-plane: controller-manager$$/d' helm/templates/deployment.yaml
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:

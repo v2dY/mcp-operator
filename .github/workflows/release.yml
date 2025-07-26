@@ -32,24 +32,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate version
+      - name: Generate version and image name
         id: version
         run: |
-          if [[ $GITHUB_REF == refs/heads/main ]]; then
-            VERSION="0.1.2"
-          elif [[ $GITHUB_REF == refs/heads/feature/optimize-image-building ]]; then
-            VERSION="0.2.0-dev.$(date +%Y%m%d%H%M%S)"
-          else
-            VERSION="0.0.0-dev"
-          fi
+          VERSION="0.2.0-dev.$(date +%Y%m%d%H%M%S)"
+          IMAGE_NAME=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
+          echo "Image name: $IMAGE_NAME"
 
       - name: Build Docker image
-        run: make docker-build IMG=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
-
+        run: make docker-build IMG=${{ steps.version.outputs.image_name }}:${{ steps.version.outputs.version }}
+  
       - name: Push Docker image
-        run: make docker-push IMG=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+        run: make docker-push IMG=${{ steps.version.outputs.image_name }}:${{ steps.version.outputs.version }}
 
       - name: Generate Helm chart
         run: |
@@ -72,4 +69,4 @@ jobs:
           helm package helm/ --destination .
           
           # Push to OCI registry
-          helm push *.tgz oci://${{ env.REGISTRY }}/${{ github.repository }}/chart
+          helm push *.tgz oci://$(echo "${{ env.REGISTRY }}/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')/chart

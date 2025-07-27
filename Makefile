@@ -127,6 +127,10 @@ helm: build-installer
 	sed -i '/^[[:space:]]*control-plane: controller-manager$$/d' helm/templates/deployment.yaml
 	sed -i '/^[[:space:]]*app\.kubernetes\.io\/name: operator$$/d' helm/templates/metrics-service.yaml
 	sed -i '/^[[:space:]]*control-plane: controller-manager$$/d' helm/templates/metrics-service.yaml
+	# Fix long names - replace fullname with name for shorter names
+	sed -i 's/{{ include "helm\.fullname" \. }}/{{ include "helm.name" . }}/g' helm/templates/*.yaml
+	# Fix service account name
+	sed -i 's/{{ include "helm\.fullname" \. }}-controller-manager/{{ include "helm.name" . }}-controller-manager/g' helm/templates/*.yaml
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:

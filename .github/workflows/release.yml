@@ -52,3 +52,17 @@ jobs:
         run: |
           go install github.com/arttor/helmify/cmd/helmify@latest
           make helm
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+        
+      - name: Package and Push Helm Chart
+        run: |
+          sed -i "s/version: .*/version: ${{ steps.version.outputs.version }}/" helm/Chart.yaml
+          sed -i "s/appVersion: .*/appVersion: ${{ steps.version.outputs.version }}/" helm/Chart.yaml
+           
+          helm package helm/ --destination .
+           
+          helm push *.tgz oci://$(echo "${{ env.REGISTRY }}/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')/chart

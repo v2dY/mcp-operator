@@ -62,6 +62,8 @@ jobs:
         run: |
           sed -i "s/version: .*/version: ${{ steps.version.outputs.version }}/" helm/Chart.yaml
           sed -i "s/appVersion: .*/appVersion: ${{ steps.version.outputs.version }}/" helm/Chart.yaml
+          
+          sed -i "s/VERSION_PLACEHOLDER/${{ steps.version.outputs.version }}/g" helm/values.yaml
            
           helm package helm/ --destination .
            

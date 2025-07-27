@@ -132,7 +132,8 @@ helm: build-installer
 	echo "" >> helm/values.yaml
 	echo "nameOverride: mcp-operator" >> helm/values.yaml
 	echo "fullnameOverride: mcp-operator" >> helm/values.yaml
-
+	sed -i 's|repository: controller|repository: ghcr.io/v2dy/kmcp|g' helm/values.yaml
+	sed -i 's|tag: latest|tag: "VERSION_PLACEHOLDER"|g' helm/values.yaml
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/

@@ -401,6 +401,7 @@ func (r *MCPServerReconciler) buildahJobForMCPServer(mcpServer *mcpv1.MCPServer)
 	// Buildah script to build image with OpenAPI spec pre-loaded
 	buildScript := fmt.Sprintf(`#!/bin/bash
 set -e
+ulimit -n 65536
 
 echo "Starting Buildah job for MCPServer: %s"
 

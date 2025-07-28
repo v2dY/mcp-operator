@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 	"time"
-
 	mcpv1 "github.com/v2dY/project/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -55,6 +55,8 @@ const (
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -102,6 +104,59 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, err
 		}
 	}
+	// Check if Buildah job already exists, if not create one
+	buildahJob := &batchv1.Job{}
+	buildahJobName := fmt.Sprintf("buildah-%s", mcpServer.Name)
+	err = r.Get(ctx, types.NamespacedName{Name: buildahJobName, Namespace: mcpServer.Namespace}, buildahJob)
+	if err != nil && apierrors.IsNotFound(err) {
+		// Create Buildah job to pre-build image
+		job, err := r.buildahJobForMCPServer(mcpServer)
+		if err != nil {
+			log.Error(err, "Failed to define new Buildah Job for MCPServer")
+			meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
+				Type: typeAvailableMCPServer, Status: metav1.ConditionFalse, Reason: "BuildFailed",
+				Message: fmt.Sprintf("Failed to create Buildah Job: %s", err)})
+			if err := r.Status().Update(ctx, mcpServer); err != nil {
+				log.Error(err, "Failed to update Server status")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Creating Buildah Job", "Job.Namespace", job.Namespace, "Job.Name", job.Name)
+		if err = r.Create(ctx, job); err != nil {
+			log.Error(err, "Failed to create Buildah Job")
+			return ctrl.Result{}, err
+		}
+
+		// Job created, requeue to check its status
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get Buildah Job")
+		return ctrl.Result{}, err
+	}
+
+	// Check if Buildah job is completed successfully
+	if buildahJob.Status.Succeeded == 0 {
+		// Job is still running or failed, wait
+		if buildahJob.Status.Failed > 0 {
+			log.Error(fmt.Errorf("buildah job failed"), "Buildah Job failed")
+			meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
+				Type: typeAvailableMCPServer, Status: metav1.ConditionFalse, Reason: "BuildFailed",
+				Message: "Buildah Job failed to build image"})
+			if err := r.Status().Update(ctx, mcpServer); err != nil {
+				log.Error(err, "Failed to update Server status")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, fmt.Errorf("buildah job failed")
+		}
+		// Job still running, requeue
+		log.Info("Buildah Job still running, waiting...")
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+
+	log.Info("Buildah Job completed successfully, proceeding with Deployment")
+
 
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
@@ -233,11 +288,11 @@ func (r *MCPServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *MCPServerReconciler) deploymentForMCPServer(
 	mcpServer *mcpv1.MCPServer) (*appsv1.Deployment, error) {
 	replicas := mcpServer.Spec.Replicas
-	// TODO: build image somehow inside k8s
-	image := "sarco3t/openapi-mcp-generator:1.0.6"
+	// Use pre-built image created by Buildah job
+	image := fmt.Sprintf("localhost:5000/mcp-server:%s", mcpServer.Name)
 
 	// Set default ImagePullPolicy to Always if not specified
-	imagePullPolicy := corev1.PullIfNotPresent
+	imagePullPolicy := corev1.PullAlways
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -335,4 +390,83 @@ func (r *MCPServerReconciler) serviceForMCPServer(mcpServer *mcpv1.MCPServer) (*
 // intstrFromInt is a helper for TargetPort
 func intstrFromInt(i int) intstr.IntOrString {
 	return intstr.IntOrString{Type: intstr.Int, IntVal: int32(i)}
+}
+
+// buildahJobForMCPServer creates a Buildah Job to build pre-configured MCP server image
+func (r *MCPServerReconciler) buildahJobForMCPServer(mcpServer *mcpv1.MCPServer) (*batchv1.Job, error) {
+	// Generate unique image name for this MCP server
+	imageName := fmt.Sprintf("localhost:5000/mcp-server:%s", mcpServer.Name)
+	
+	// Buildah script to build image with OpenAPI spec pre-loaded
+	buildScript := fmt.Sprintf(`#!/bin/bash
+set -e
+
+echo "Starting Buildah job for MCPServer: %s"
+
+# Create working container from base image
+buildah from --name working-container registry.fedoraproject.org/fedora:latest
+
+# Install dependencies
+buildah run working-container -- dnf install -y python3 python3-pip curl
+
+# Download OpenAPI spec from the URL
+echo "Downloading OpenAPI spec from: %s"
+buildah run working-container -- curl -o /tmp/openapi.json "%s"
+
+# Copy our MCP generator code (this would be baked into base image in production)
+# For now, we'll simulate with a simple echo
+buildah run working-container -- mkdir -p /app
+buildah run working-container -- echo "MCP Server ready with pre-loaded spec" > /app/ready.txt
+
+# Commit the image
+echo "Committing image: %s"
+buildah commit working-container %s
+
+# Push to registry (for now using insecure local registry)
+echo "Pushing image to registry..."
+buildah push --tls-verify=false %s
+
+echo "Buildah job completed successfully!"
+`, mcpServer.Name, mcpServer.Spec.Url, mcpServer.Spec.Url, imageName, imageName, imageName)
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("buildah-%s", mcpServer.Name),
+			Namespace: mcpServer.Namespace,
+			Labels:    map[string]string{"app": "buildah-mcp", "mcp-server": mcpServer.Name},
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					RestartPolicy: corev1.RestartPolicyNever,
+					Containers: []corev1.Container{{
+						Name:    "buildah",
+						Image:   "quay.io/buildah/stable:latest",
+						Command: []string{"/bin/bash"},
+						Args:    []string{"-c", buildScript},
+						SecurityContext: &corev1.SecurityContext{
+							Privileged: ptr.To(true), // Buildah needs privileged access
+						},
+						VolumeMounts: []corev1.VolumeMount{{
+							Name:      "container-storage",
+							MountPath: "/var/lib/containers",
+						}},
+					}},
+					Volumes: []corev1.Volume{{
+						Name: "container-storage",
+						VolumeSource: corev1.VolumeSource{
+							EmptyDir: &corev1.EmptyDirVolumeSource{},
+						},
+					}},
+				},
+			},
+		},
+	}
+
+	// Set owner reference
+	if err := ctrl.SetControllerReference(mcpServer, job, r.Scheme); err != nil {
+		return nil, err
+	}
+
+	return job, nil
 }

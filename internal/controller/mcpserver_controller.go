@@ -290,7 +290,7 @@ func (r *MCPServerReconciler) deploymentForMCPServer(
 	mcpServer *mcpv1.MCPServer) (*appsv1.Deployment, error) {
 	replicas := mcpServer.Spec.Replicas
 	// Use pre-built image created by Buildah job
-	image := fmt.Sprintf("localhost:5000/mcp-server:%s", mcpServer.Name)
+	image := fmt.Sprintf("docker-registry.registry.svc.cluster.local:5000/mcp-server:%s", mcpServer.Name)
 
 	// Set default ImagePullPolicy to Always if not specified
 	imagePullPolicy := corev1.PullAlways
@@ -396,7 +396,7 @@ func intstrFromInt(i int) intstr.IntOrString {
 // buildahJobForMCPServer creates a Buildah Job to build pre-configured MCP server image
 func (r *MCPServerReconciler) buildahJobForMCPServer(mcpServer *mcpv1.MCPServer) (*batchv1.Job, error) {
 	// Generate unique image name for this MCP server
-	imageName := fmt.Sprintf("localhost:5000/mcp-server:%s", mcpServer.Name)
+	imageName := fmt.Sprintf("docker-registry.registry.svc.cluster.local:5000/mcp-server:%s", mcpServer.Name)
 	
 	// Buildah script to build image with OpenAPI spec pre-loaded
 	buildScript := fmt.Sprintf(`#!/bin/bash

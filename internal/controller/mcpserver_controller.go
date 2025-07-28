@@ -417,8 +417,8 @@ buildah run working-container -- curl -o /tmp/openapi.json "%s"
 
 # Copy our MCP generator code (this would be baked into base image in production)
 # For now, we'll simulate with a simple echo
-buildah run working-container -- mkdir -p /app
-buildah run working-container -- echo "MCP Server ready with pre-loaded spec" > /app/ready.txt
+buildah run working-container -- sh -c 'ulimit -n 65536 && mkdir -p /app'
+buildah run working-container -- sh -c 'ulimit -n 65536 && echo "MCP Server ready with pre-loaded spec" > /app/ready.txt'
 
 # Commit the image
 echo "Committing image: %s"

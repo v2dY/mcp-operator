@@ -24,6 +24,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -429,39 +430,51 @@ buildah push --tls-verify=false %s
 echo "Buildah job completed successfully!"
 `, mcpServer.Name, mcpServer.Spec.Url, mcpServer.Spec.Url, imageName, imageName, imageName)
 
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("buildah-%s", mcpServer.Name),
-			Namespace: mcpServer.Namespace,
-			Labels:    map[string]string{"app": "buildah-mcp", "mcp-server": mcpServer.Name},
-		},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyNever,
-					Containers: []corev1.Container{{
-						Name:    "buildah",
-						Image:   "quay.io/buildah/stable:latest",
-						Command: []string{"/bin/bash"},
-						Args:    []string{"-c", buildScript},
-						SecurityContext: &corev1.SecurityContext{
-							Privileged: ptr.To(true), // Buildah needs privileged access
+job := &batchv1.Job{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      fmt.Sprintf("buildah-%s", mcpServer.Name),
+		Namespace: mcpServer.Namespace,
+		Labels:    map[string]string{"app": "buildah-mcp", "mcp-server": mcpServer.Name},
+	},
+	Spec: batchv1.JobSpec{
+		Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				RestartPolicy: corev1.RestartPolicyNever,
+				Containers: []corev1.Container{{
+					Name:    "buildah",
+					Image:   "quay.io/buildah/stable:latest",
+					Command: []string{"/bin/bash"},
+					Args:    []string{"-c", buildScript},
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: ptr.To(true),
+					},
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+							corev1.ResourceCPU:    resource.MustParse("1000m"),
 						},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "container-storage",
-							MountPath: "/var/lib/containers",
-						}},
-					}},
-					Volumes: []corev1.Volume{{
-						Name: "container-storage",
-						VolumeSource: corev1.VolumeSource{
-							EmptyDir: &corev1.EmptyDirVolumeSource{},
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
+							corev1.ResourceCPU:    resource.MustParse("500m"),
 						},
+					},
+					VolumeMounts: []corev1.VolumeMount{{
+						Name:      "container-storage",
+						MountPath: "/var/lib/containers",
 					}},
-				},
+				}},
+				Volumes: []corev1.Volume{{
+					Name: "container-storage",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							SizeLimit: resource.NewQuantity(10*1024*1024*1024, resource.BinarySI),
+						},
+					},
+				}},
 			},
 		},
-	}
+	},
+}
 
 	// Set owner reference
 	if err := ctrl.SetControllerReference(mcpServer, job, r.Scheme); err != nil {

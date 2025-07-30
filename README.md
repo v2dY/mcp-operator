@@ -55,6 +55,8 @@ example [CRD](config/samples//mcp_v1_mcpserver.yaml)
  
  [HLD](HLD.md)
 
+ ![Diagram work](docs/work_diagram.jpg)
+
 # Development
 
 

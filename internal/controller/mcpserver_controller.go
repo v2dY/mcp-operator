@@ -28,9 +28,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,6 +42,7 @@ import (
 )
 
 // Embed templates
+//
 //go:embed templates/buildah-script.sh
 var buildahScriptTemplate string
 
@@ -101,7 +102,7 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Set initial status if not available
 	if len(mcpServer.Status.Conditions) == 0 {
 		meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
-			Type: typeAvailableMCPServer, Status: metav1.ConditionUnknown, 
+			Type: typeAvailableMCPServer, Status: metav1.ConditionUnknown,
 			Reason: "Reconciling", Message: "Starting reconciliation"})
 		if err = r.Status().Update(ctx, mcpServer); err != nil {
 			log.Error(err, "Failed to update Server status")
@@ -359,20 +360,20 @@ func (r *MCPServerReconciler) buildahJobForMCPServer(mcpServer *mcpv1.MCPServer)
 	data := r.getTemplateData(mcpServer)
 
 	// Render templates
-    buildScript, err := r.renderTemplate(buildahScriptTemplate, data)
-    if err != nil {
-        return nil, fmt.Errorf("failed to render buildah script: %w", err)
-    }
+	buildScript, err := r.renderTemplate(buildahScriptTemplate, data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render buildah script: %w", err)
+	}
 
-    packageJson, err := r.renderTemplate(packageJsonTemplate, data)
-    if err != nil {
-        return nil, fmt.Errorf("failed to render package.json: %w", err)
-    }
+	packageJson, err := r.renderTemplate(packageJsonTemplate, data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render package.json: %w", err)
+	}
 
-    entrypoint, err := r.renderTemplate(entrypointTemplate, data)
-    if err != nil {
-        return nil, fmt.Errorf("failed to render entrypoint.sh: %w", err)
-    }
+	entrypoint, err := r.renderTemplate(entrypointTemplate, data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render entrypoint.sh: %w", err)
+	}
 
 	// Create Job with buildah script and templates
 	job := &batchv1.Job{

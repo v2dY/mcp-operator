@@ -30,11 +30,11 @@ buildah run working-container -- mkdir -p /app
 buildah run working-container -- chown -R appuser:appuser /app
 
 # Copy package.json
-buildah copy working-container package.json /app/package.json
+echo "$PACKAGE_JSON" | buildah run working-container -- sh -c 'cat > /app/package.json'
 
 # Copy entrypoint script
 buildah copy working-container entrypoint.sh /entrypoint.sh
-buildah run working-container -- chmod +x /entrypoint.sh
+echo "$ENTRYPOINT_SH" | buildah run working-container -- sh -c 'cat > /entrypoint.sh'
 
 # Download OpenAPI spec
 echo "Downloading OpenAPI spec from: {{.OpenAPIUrl}}"

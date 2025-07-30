@@ -1,4 +1,4 @@
-package kmcp
+package main
 import _ "embed"
 
 //go:embed templates/buildah-script.sh

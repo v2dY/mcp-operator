@@ -33,7 +33,7 @@ buildah run working-container -- chown -R appuser:appuser /app
 echo "$PACKAGE_JSON" | buildah run working-container -- sh -c 'cat > /app/package.json'
 
 # Copy entrypoint script
-echo "$ENTRYPOINT_SH" | buildah run working-container -- sh -c 'cat > /entrypoint.sh'
+echo "$ENTRYPOINT_SH" | buildah run working-container -- sh -c 'cat > /entrypoint.sh && chmod +x /entrypoint.sh'
 
 # Download OpenAPI spec
 echo "Downloading OpenAPI spec from: {{.OpenAPIUrl}}"

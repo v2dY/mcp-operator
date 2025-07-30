@@ -19,11 +19,11 @@ package controller
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
 	"text/template"
 	"time"
 
-	kmcp "github.com/v2dY/project"
 	mcpv1 "github.com/v2dY/project/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -40,6 +40,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+// Embed templates
+//go:embed templates/buildah-script.sh
+var buildahScriptTemplate string
+
+//go:embed templates/package.json
+var packageJsonTemplate string
+
+//go:embed templates/entrypoint.sh
+var entrypointTemplate string
 
 // Template data structure
 type TemplateData struct {
@@ -348,23 +358,21 @@ func (r *MCPServerReconciler) buildahJobForMCPServer(mcpServer *mcpv1.MCPServer)
 	// Prepare template data
 	data := r.getTemplateData(mcpServer)
 
-	// Render buildah script
-	buildScript, err := r.renderTemplate(kmcp.BuildahScriptTemplate, data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to render buildah script: %w", err)
-	}
+	// Render templates
+    buildScript, err := r.renderTemplate(buildahScriptTemplate, data)
+    if err != nil {
+        return nil, fmt.Errorf("failed to render buildah script: %w", err)
+    }
 
-	// Render package.json
-	packageJson, err := r.renderTemplate(kmcp.PackageJsonTemplate, data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to render package.json: %w", err)
-	}
+    packageJson, err := r.renderTemplate(packageJsonTemplate, data)
+    if err != nil {
+        return nil, fmt.Errorf("failed to render package.json: %w", err)
+    }
 
-	// Render entrypoint.sh
-	entrypoint, err := r.renderTemplate(kmcp.EntrypointTemplate, data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to render entrypoint.sh: %w", err)
-	}
+    entrypoint, err := r.renderTemplate(entrypointTemplate, data)
+    if err != nil {
+        return nil, fmt.Errorf("failed to render entrypoint.sh: %w", err)
+    }
 
 	// Create Job with buildah script and templates
 	job := &batchv1.Job{

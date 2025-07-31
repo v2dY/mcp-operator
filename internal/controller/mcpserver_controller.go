@@ -127,7 +127,7 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		return ctrl.Result{}, err
 	}
-	
+
 	if !buildCompleted {
 		// Build still in progress, requeue
 		return ctrl.Result{RequeueAfter: requeueAfter}, nil
@@ -170,28 +170,28 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err = r.Update(ctx, found); err != nil {
 			log.Error(err, "Failed to update Deployment",
 				"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
-		
+
 			// Re-fetch the mcp server Custom Resource before updating the status
 			if err := r.Get(ctx, req.NamespacedName, mcpServer); err != nil {
 				log.Error(err, "Failed to re-fetch mcp server")
 				return ctrl.Result{}, err
 			}
-		
+
 			// Update status
 			meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
 				Type: typeAvailableMCPServer, Status: metav1.ConditionFalse, Reason: "Resizing",
 				Message: fmt.Sprintf("Failed to update the size for the custom resource (%s): (%s)", mcpServer.Name, err)})
-		
+
 			if err := r.Status().Update(ctx, mcpServer); err != nil {
 				log.Error(err, "Failed to update Server status")
 				return ctrl.Result{}, err
 			}
-		
+
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{Requeue: true}, nil
 	}
-	
+
 	// Update status to successful
 	meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
 		Type: typeAvailableMCPServer, Status: metav1.ConditionTrue, Reason: "Reconciling",
@@ -425,30 +425,30 @@ func (r *MCPServerReconciler) buildahJobForMCPServer(mcpServer *mcpv1.MCPServer)
 // Returns: (buildCompleted bool, requeue time.Duration, error)
 func (r *MCPServerReconciler) reconcileBuild(ctx context.Context, mcpServer *mcpv1.MCPServer) (bool, time.Duration, error) {
 	log := logf.FromContext(ctx)
-	
+
 	// Check if Buildah job already exists, if not create one
 	buildahJob := &batchv1.Job{}
 	buildahJobName := fmt.Sprintf("buildah-%s", mcpServer.Name)
 	err := r.Get(ctx, types.NamespacedName{Name: buildahJobName, Namespace: mcpServer.Namespace}, buildahJob)
-	
+
 	if err != nil && apierrors.IsNotFound(err) {
 		// Create Buildah job to pre-build image
 		job, err := r.buildahJobForMCPServer(mcpServer)
 		if err != nil {
 			return false, 0, fmt.Errorf("failed to create buildah job: %w", err)
 		}
-		
+
 		log.Info("Creating Buildah Job", "Job.Namespace", job.Namespace, "Job.Name", job.Name)
 		if err = r.Create(ctx, job); err != nil {
 			return false, 0, fmt.Errorf("failed to create buildah job: %w", err)
 		}
-		
+
 		// Job created, requeue to check its status
 		return false, 30 * time.Second, nil
 	} else if err != nil {
 		return false, 0, fmt.Errorf("failed to get buildah job: %w", err)
 	}
-	
+
 	// Check if Buildah job is completed successfully
 	if buildahJob.Status.Succeeded == 0 {
 		if buildahJob.Status.Failed > 0 {
@@ -458,7 +458,7 @@ func (r *MCPServerReconciler) reconcileBuild(ctx context.Context, mcpServer *mcp
 		log.Info("Buildah Job still running, waiting...")
 		return false, 30 * time.Second, nil
 	}
-	
+
 	log.Info("Buildah Job completed successfully")
 	return true, 0, nil
 }

@@ -29,3 +29,4 @@ tmp/*
 helm/
 dist
 helm-*.tgz
+go1.24.0.linux-amd64.tar.gz

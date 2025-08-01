@@ -123,7 +123,18 @@ docker-kind-load: ## Load docker image with the manager.
 
 helm: build-installer
 	cat dist/install.yaml | helmify helm
-
+	
+	sed -i '/^[[:space:]]*app\.kubernetes\.io\/name: operator$$/d' helm/templates/deployment.yaml
+	sed -i '/^[[:space:]]*control-plane: controller-manager$$/d' helm/templates/deployment.yaml  
+	sed -i '/^[[:space:]]*app\.kubernetes\.io\/name: operator$$/d' helm/templates/metrics-service.yaml
+	sed -i '/^[[:space:]]*control-plane: controller-manager$$/d' helm/templates/metrics-service.yaml
+	sed -i 's/printf "%s-%s" \.Release\.Name \$$name/printf "%s" \$$name/g' helm/templates/_helpers.tpl
+	echo "" >> helm/values.yaml
+	echo "nameOverride: mcp-operator" >> helm/values.yaml
+	echo "fullnameOverride: mcp-operator" >> helm/values.yaml
+	sed -i 's|repository: controller|repository: ghcr.io/v2dy/kmcp|g' helm/values.yaml
+	sed -i 's|tag: latest|tag: "VERSION_PLACEHOLDER"|g' helm/values.yaml
+	sed -i '/serviceAccountName:/a\      imagePullSecrets:\n      - name: ghcr-secret' helm/templates/deployment.yaml
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/

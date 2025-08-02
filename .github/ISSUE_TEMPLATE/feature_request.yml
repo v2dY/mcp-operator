@@ -1,0 +1,168 @@
+name: Feature Request
+description: Suggest an idea or enhancement for the Kubernetes MCP Operator
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a new feature! 
+        
+        Before submitting, please check if a similar feature request already exists.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem? Please describe the problem you're trying to solve.
+      placeholder: |
+        I'm frustrated when...
+        It would be helpful if...
+        Currently, there's no way to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see implemented.
+      placeholder: |
+        I would like to see...
+        The operator should be able to...
+        A new field/feature that...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered.
+      placeholder: |
+        Alternative approaches could be...
+        I also considered...
+        Other tools handle this by...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: Feature Type
+      description: What type of feature is this?
+      options:
+        - New CRD field/configuration option
+        - New operator capability
+        - Performance improvement
+        - Developer experience improvement
+        - Documentation enhancement
+        - Integration with external system
+        - Other
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would be helpful
+        - Important for my use case
+        - Critical/Blocking
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: |
+        Describe specific use cases where this feature would be valuable.
+        Help us understand the broader context and potential impact.
+      placeholder: |
+        This feature would help with:
+        1. Use case 1: ...
+        2. Use case 2: ...
+        3. Use case 3: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: architecture-impact
+    attributes:
+      label: Architecture Considerations
+      description: |
+        How do you think this feature should fit with the current architecture?
+        Consider referencing our [ADR-001](https://github.com/v2dY/kmcp/blob/main/docs/adr/ADR-001.md).
+      placeholder: |
+        This feature should integrate with...
+        It would require changes to...
+        It aligns with our architecture because...
+    validations:
+      required: false
+
+  - type: textarea
+    id: example-config
+    attributes:
+      label: Example Configuration
+      description: If applicable, provide an example of how this feature might be configured or used.
+      placeholder: |
+        apiVersion: mcp.my.domain/v1
+        kind: MCPServer
+        metadata:
+          name: example
+        spec:
+          newFeature:
+            enabled: true
+            configuration: ...
+      render: yaml
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: |
+        What would need to be implemented for this feature to be considered complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Documentation updated
+        - [ ] Tests added
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Add any other context, screenshots, links to related issues, or examples from other projects.
+      placeholder: |
+        Related to issue #...
+        Similar to how [other project] handles...
+        See also: [link to documentation/example]
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched for existing feature requests before creating this one
+          required: true
+        - label: I have clearly described the problem this feature would solve
+          required: true
+        - label: I have considered how this fits with the existing architecture
+          required: true
+        - label: I am willing to help implement this feature (optional but appreciated!)
+          required: false

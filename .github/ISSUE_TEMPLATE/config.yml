@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/v2dY/kmcp/blob/main/README.md
+    about: Check out our documentation for help and guidance
+  - name: 🔍 Existing Issues
+    url: https://github.com/v2dY/kmcp/issues
+    about: Search existing issues before creating a new one

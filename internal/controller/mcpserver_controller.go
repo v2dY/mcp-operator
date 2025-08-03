@@ -21,6 +21,8 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"reflect"
+	"strings"
 	"text/template"
 	"time"
 
@@ -71,6 +73,13 @@ const (
 	typeAvailableMCPServer = "Available"
 	labelAppName           = "project"
 )
+
+// DeploymentChanges represents what changed in the deployment spec
+type DeploymentChanges struct {
+	Replicas    bool
+	PodTemplate bool
+	Changes     []string
+}
 
 // +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers/status,verbs=get;update;patch
@@ -163,39 +172,19 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	// Update deployment replicas if needed
-	size := mcpServer.Spec.Replicas
-	if *found.Spec.Replicas != size {
-		found.Spec.Replicas = &size
-		if err = r.Update(ctx, found); err != nil {
-			log.Error(err, "Failed to update Deployment",
-				"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
-
-			// Re-fetch the mcp server Custom Resource before updating the status
-			if err := r.Get(ctx, req.NamespacedName, mcpServer); err != nil {
-				log.Error(err, "Failed to re-fetch mcp server")
-				return ctrl.Result{}, err
-			}
-
-			// Update status
-			meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
-				Type: typeAvailableMCPServer, Status: metav1.ConditionFalse, Reason: "Resizing",
-				Message: fmt.Sprintf("Failed to update the size for the custom resource (%s): (%s)", mcpServer.Name, err)})
-
-			if err := r.Status().Update(ctx, mcpServer); err != nil {
-				log.Error(err, "Failed to update Server status")
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{Requeue: true}, nil
+	// Enhanced deployment reconciliation
+	result, err := r.reconcileDeployment(ctx, mcpServer, req)
+	if err != nil {
+		return result, err
+	}
+	if result.RequeueAfter > 0 {
+		return result, nil
 	}
 
 	// Update status to successful
 	meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
 		Type: typeAvailableMCPServer, Status: metav1.ConditionTrue, Reason: "Reconciling",
-		Message: fmt.Sprintf("Deployment for custom resource (%s) with %d replicas created successfully", mcpServer.Name, size)})
+		Message: fmt.Sprintf("Deployment for custom resource (%s) with %d replicas created successfully", mcpServer.Name, mcpServer.Spec.Replicas)})
 	if err := r.Status().Update(ctx, mcpServer); err != nil {
 		log.Error(err, "Failed to update Server status")
 		return ctrl.Result{}, err
@@ -575,4 +564,216 @@ func (r *MCPServerReconciler) reconcileBuild(ctx context.Context, mcpServer *mcp
 
 	log.Info("Buildah Job completed successfully")
 	return true, 0, nil
+}
+
+// detectDeploymentChanges compares desired vs actual deployment and returns what changed
+func (r *MCPServerReconciler) detectDeploymentChanges(desired, actual *appsv1.Deployment) *DeploymentChanges {
+	changes := &DeploymentChanges{
+		Changes: []string{},
+	}
+
+	// Check replicas
+	if *desired.Spec.Replicas != *actual.Spec.Replicas {
+		changes.Replicas = true
+		changes.Changes = append(changes.Changes,
+			fmt.Sprintf("replicas: %d -> %d", *actual.Spec.Replicas, *desired.Spec.Replicas))
+	}
+
+	// Check pod template changes
+	if r.podTemplateChanged(&desired.Spec.Template, &actual.Spec.Template) {
+		changes.PodTemplate = true
+		// Get detailed pod template changes
+		podChanges := r.detectPodTemplateChanges(&desired.Spec.Template, &actual.Spec.Template)
+		changes.Changes = append(changes.Changes, podChanges...)
+	}
+
+	return changes
+}
+
+// podTemplateChanged checks if pod template specs are different
+func (r *MCPServerReconciler) podTemplateChanged(desired, actual *corev1.PodTemplateSpec) bool {
+	// Compare containers (main focus)
+	if len(desired.Spec.Containers) != len(actual.Spec.Containers) {
+		return true
+	}
+
+	for i, desiredContainer := range desired.Spec.Containers {
+		if i >= len(actual.Spec.Containers) {
+			return true
+		}
+		actualContainer := actual.Spec.Containers[i]
+
+		// Check key container fields that can be changed via podTemplate
+		if desiredContainer.Image != actualContainer.Image ||
+			!reflect.DeepEqual(desiredContainer.Resources, actualContainer.Resources) ||
+			!reflect.DeepEqual(desiredContainer.Env, actualContainer.Env) ||
+			!reflect.DeepEqual(desiredContainer.ReadinessProbe, actualContainer.ReadinessProbe) ||
+			!reflect.DeepEqual(desiredContainer.LivenessProbe, actualContainer.LivenessProbe) ||
+			desiredContainer.ImagePullPolicy != actualContainer.ImagePullPolicy ||
+			!reflect.DeepEqual(desiredContainer.SecurityContext, actualContainer.SecurityContext) {
+			return true
+		}
+	}
+
+	// Check pod-level settings from podTemplate.scheduling
+	if !reflect.DeepEqual(desired.Spec.SecurityContext, actual.Spec.SecurityContext) ||
+		!reflect.DeepEqual(desired.Spec.NodeSelector, actual.Spec.NodeSelector) ||
+		!reflect.DeepEqual(desired.Spec.Tolerations, actual.Spec.Tolerations) ||
+		!reflect.DeepEqual(desired.Spec.Affinity, actual.Spec.Affinity) {
+		return true
+	}
+
+	return false
+}
+
+// detectPodTemplateChanges returns human-readable list of pod template changes
+func (r *MCPServerReconciler) detectPodTemplateChanges(desired, actual *corev1.PodTemplateSpec) []string {
+	changes := []string{}
+
+	// Check containers
+	for i, desiredContainer := range desired.Spec.Containers {
+		if i >= len(actual.Spec.Containers) {
+			changes = append(changes, fmt.Sprintf("container[%d]: added", i))
+			continue
+		}
+		actualContainer := actual.Spec.Containers[i]
+
+		if desiredContainer.Image != actualContainer.Image {
+			changes = append(changes, fmt.Sprintf("container[%d].image: %s -> %s",
+				i, actualContainer.Image, desiredContainer.Image))
+		}
+
+		if !reflect.DeepEqual(desiredContainer.Resources, actualContainer.Resources) {
+			changes = append(changes, fmt.Sprintf("container[%d].resources: updated", i))
+		}
+
+		if !reflect.DeepEqual(desiredContainer.Env, actualContainer.Env) {
+			changes = append(changes, fmt.Sprintf("container[%d].env: updated", i))
+		}
+
+		if !reflect.DeepEqual(desiredContainer.ReadinessProbe, actualContainer.ReadinessProbe) {
+			changes = append(changes, fmt.Sprintf("container[%d].readinessProbe: updated", i))
+		}
+
+		if !reflect.DeepEqual(desiredContainer.LivenessProbe, actualContainer.LivenessProbe) {
+			changes = append(changes, fmt.Sprintf("container[%d].livenessProbe: updated", i))
+		}
+
+		if desiredContainer.ImagePullPolicy != actualContainer.ImagePullPolicy {
+			changes = append(changes, fmt.Sprintf("container[%d].imagePullPolicy: %s -> %s",
+				i, actualContainer.ImagePullPolicy, desiredContainer.ImagePullPolicy))
+		}
+
+		if !reflect.DeepEqual(desiredContainer.SecurityContext, actualContainer.SecurityContext) {
+			changes = append(changes, fmt.Sprintf("container[%d].securityContext: updated", i))
+		}
+	}
+
+	// Check pod-level changes
+	if !reflect.DeepEqual(desired.Spec.SecurityContext, actual.Spec.SecurityContext) {
+		changes = append(changes, "pod.securityContext: updated")
+	}
+
+	if !reflect.DeepEqual(desired.Spec.NodeSelector, actual.Spec.NodeSelector) {
+		changes = append(changes, "nodeSelector: updated")
+	}
+
+	if !reflect.DeepEqual(desired.Spec.Tolerations, actual.Spec.Tolerations) {
+		changes = append(changes, "tolerations: updated")
+	}
+
+	if !reflect.DeepEqual(desired.Spec.Affinity, actual.Spec.Affinity) {
+		changes = append(changes, "affinity: updated")
+	}
+
+	return changes
+}
+
+func (r *MCPServerReconciler) reconcileDeployment(ctx context.Context, mcpServer *mcpv1.MCPServer, req ctrl.Request) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Create desired deployment
+	dep, err := r.deploymentForMCPServer(mcpServer)
+	if err != nil {
+		log.Error(err, "Failed to define new Deployment resource for MCPServer")
+		meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
+			Type: typeAvailableMCPServer, Status: metav1.ConditionFalse, Reason: "Reconciling",
+			Message: fmt.Sprintf("Failed to create Deployment for the custom resource (%s): (%s)", mcpServer.Name, err)})
+		if err := r.Status().Update(ctx, mcpServer); err != nil {
+			log.Error(err, "Failed to update Server status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Check if deployment exists
+	found := &appsv1.Deployment{}
+	err = r.Get(ctx, types.NamespacedName{Name: mcpServer.Name, Namespace: mcpServer.Namespace}, found)
+	if err != nil && apierrors.IsNotFound(err) {
+		// This case is handled in main Reconcile function
+		return ctrl.Result{}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get Deployment")
+		return ctrl.Result{}, err
+	}
+
+	// Detect what changed
+	changes := r.detectDeploymentChanges(dep, found)
+
+	// If no changes, we're done
+	if !changes.Replicas && !changes.PodTemplate {
+		log.V(1).Info("No deployment changes detected", "deployment", found.Name)
+		return ctrl.Result{}, nil
+	}
+
+	// Log detected changes
+	log.Info("Detected deployment changes",
+		"changes", strings.Join(changes.Changes, ", "),
+		"deployment", found.Name)
+
+	// Apply changes to existing deployment
+	found.Spec.Replicas = dep.Spec.Replicas
+	found.Spec.Template = dep.Spec.Template
+
+	// Update deployment
+	if err = r.Update(ctx, found); err != nil {
+		log.Error(err, "Failed to update Deployment",
+			"Deployment.Namespace", found.Namespace,
+			"Deployment.Name", found.Name,
+			"changes", strings.Join(changes.Changes, ", "))
+
+		// Re-fetch the mcpServer Custom Resource before updating the status
+		if err := r.Get(ctx, req.NamespacedName, mcpServer); err != nil {
+			log.Error(err, "Failed to re-fetch mcpServer")
+			return ctrl.Result{}, err
+		}
+
+		// Update status with failure
+		reason := "UpdateFailed"
+		if changes.Replicas && !changes.PodTemplate {
+			reason = "ResizeFailed"
+		} else if changes.PodTemplate {
+			reason = "ConfigUpdateFailed"
+		}
+
+		meta.SetStatusCondition(&mcpServer.Status.Conditions, metav1.Condition{
+			Type:   typeAvailableMCPServer,
+			Status: metav1.ConditionFalse,
+			Reason: reason,
+			Message: fmt.Sprintf("Failed to update deployment for MCPServer (%s): %s. Changes attempted: %s",
+				mcpServer.Name, err.Error(), strings.Join(changes.Changes, ", "))})
+
+		if err := r.Status().Update(ctx, mcpServer); err != nil {
+			log.Error(err, "Failed to update MCPServer status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Success - log what was updated
+	log.Info("Successfully updated deployment",
+		"deployment", found.Name,
+		"changes", strings.Join(changes.Changes, ", "))
+
+	return ctrl.Result{RequeueAfter: time.Second}, nil
 }

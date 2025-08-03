@@ -258,6 +258,110 @@ func (r *MCPServerReconciler) getTemplateData(mcpServer *mcpv1.MCPServer) Templa
 	}
 }
 
+// mergePodTemplateSpec merges podTemplate configuration with defaults
+func (r *MCPServerReconciler) mergePodTemplateSpec(mcpServer *mcpv1.MCPServer, containerSpec *corev1.Container) {
+    if mcpServer.Spec.PodTemplate == nil {
+        return
+    }
+
+    podTemplate := mcpServer.Spec.PodTemplate
+    
+    // Merge resources
+    if podTemplate.Resources != nil {
+        containerSpec.Resources = corev1.ResourceRequirements{}
+        if podTemplate.Resources.Requests != nil {
+            containerSpec.Resources.Requests = podTemplate.Resources.Requests
+        }
+        if podTemplate.Resources.Limits != nil {
+            containerSpec.Resources.Limits = podTemplate.Resources.Limits
+        }
+    }
+
+    // Merge health probes
+    if podTemplate.Health != nil {
+        if podTemplate.Health.ReadinessProbe != nil {
+            containerSpec.ReadinessProbe = podTemplate.Health.ReadinessProbe
+        }
+        if podTemplate.Health.LivenessProbe != nil {
+            containerSpec.LivenessProbe = podTemplate.Health.LivenessProbe
+        }
+    }
+
+    // Merge runtime settings
+    if podTemplate.Runtime != nil {
+        if podTemplate.Runtime.ImagePullPolicy != "" {
+            containerSpec.ImagePullPolicy = podTemplate.Runtime.ImagePullPolicy
+        }
+        // Merge env vars (both old and new)
+        if len(podTemplate.Runtime.Env) > 0 {
+            // Start with old env vars for backward compatibility
+            allEnvs := append([]corev1.EnvVar{}, mcpServer.Spec.Env...)
+            // Add new env vars, with new ones taking precedence
+            for _, newEnv := range podTemplate.Runtime.Env {
+                found := false
+                for i, existingEnv := range allEnvs {
+                    if existingEnv.Name == newEnv.Name {
+                        allEnvs[i] = newEnv // Override existing
+                        found = true
+                        break
+                    }
+                }
+                if !found {
+                    allEnvs = append(allEnvs, newEnv) // Add new
+                }
+            }
+            containerSpec.Env = allEnvs
+        }
+    }
+
+    // Merge security context
+    if podTemplate.Security != nil && podTemplate.Security.SecurityContext != nil {
+        // Merge with existing security context
+        if containerSpec.SecurityContext == nil {
+            containerSpec.SecurityContext = &corev1.SecurityContext{}
+        }
+        // Override only specified fields, keep defaults for others
+        secCtx := podTemplate.Security.SecurityContext
+        if secCtx.RunAsUser != nil {
+            containerSpec.SecurityContext.RunAsUser = secCtx.RunAsUser
+        }
+        if secCtx.RunAsNonRoot != nil {
+            containerSpec.SecurityContext.RunAsNonRoot = secCtx.RunAsNonRoot
+        }
+        if secCtx.AllowPrivilegeEscalation != nil {
+            containerSpec.SecurityContext.AllowPrivilegeEscalation = secCtx.AllowPrivilegeEscalation
+        }
+        if secCtx.Capabilities != nil {
+            containerSpec.SecurityContext.Capabilities = secCtx.Capabilities
+        }
+        // Add other security context fields as needed
+    }
+}
+
+// mergePodSpec merges podTemplate scheduling configuration with pod spec
+func (r *MCPServerReconciler) mergePodSpec(mcpServer *mcpv1.MCPServer, podSpec *corev1.PodSpec) {
+    if mcpServer.Spec.PodTemplate == nil || mcpServer.Spec.PodTemplate.Scheduling == nil {
+        return
+    }
+    
+    scheduling := mcpServer.Spec.PodTemplate.Scheduling
+    
+    // Merge nodeSelector
+    if scheduling.NodeSelector != nil {
+        podSpec.NodeSelector = scheduling.NodeSelector
+    }
+    
+    // Merge tolerations
+    if len(scheduling.Tolerations) > 0 {
+        podSpec.Tolerations = scheduling.Tolerations
+    }
+    
+    // Merge affinity
+    if scheduling.Affinity != nil {
+        podSpec.Affinity = scheduling.Affinity
+    }
+}
+
 // deploymentForMCPServer returns a MCPServer Deployment object
 func (r *MCPServerReconciler) deploymentForMCPServer(mcpServer *mcpv1.MCPServer) (*appsv1.Deployment, error) {
 	replicas := mcpServer.Spec.Replicas
@@ -284,29 +388,39 @@ func (r *MCPServerReconciler) deploymentForMCPServer(mcpServer *mcpv1.MCPServer)
 							Type: corev1.SeccompProfileTypeRuntimeDefault,
 						},
 					},
-					Containers: []corev1.Container{{
-						Image:           image,
-						Name:            "mcp",
-						ImagePullPolicy: corev1.PullAlways,
-						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             ptr.To(true),
-							RunAsUser:                ptr.To(int64(1001)),
-							AllowPrivilegeEscalation: ptr.To(false),
-							Capabilities: &corev1.Capabilities{
-								Drop: []corev1.Capability{"ALL"},
+					Containers: []corev1.Container{func() corev1.Container {
+						// Create base container with defaults
+						container := corev1.Container{
+							Image:           image,
+							Name:            "mcp",
+							ImagePullPolicy: corev1.PullAlways,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsNonRoot:             ptr.To(true),
+								RunAsUser:                ptr.To(int64(1001)),
+								AllowPrivilegeEscalation: ptr.To(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
 							},
-						},
-						Ports: []corev1.ContainerPort{{
-							ContainerPort: 3001,
-						}},
-						Env: mcpServer.Spec.Env,
-						// Remove Args since entrypoint will handle everything
-					}},
+							Ports: []corev1.ContainerPort{{
+								ContainerPort: 3001,
+							}},
+							Env: mcpServer.Spec.Env, // Backward compatibility
+						}
+						
+						// Merge with podTemplate configuration
+						r.mergePodTemplateSpec(mcpServer, &container)
+						
+						return container
+					}()},
 				},
 			},
 		},
 	}
 
+	// Merge pod-level configuration
+	r.mergePodSpec(mcpServer, &dep.Spec.Template.Spec)
+	
 	if err := ctrl.SetControllerReference(mcpServer, dep, r.Scheme); err != nil {
 		return nil, err
 	}

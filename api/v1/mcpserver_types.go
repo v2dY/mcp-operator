@@ -25,57 +25,58 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 // PodTemplateConfig defines pod-level configuration options
 type PodTemplateConfig struct {
-    // +optional
-    Resources *ResourceConfig `json:"resources,omitempty"`
-    // +optional
-    Security *SecurityConfig `json:"security,omitempty"`
-    // +optional
-    Health *HealthConfig `json:"health,omitempty"`
-    // +optional
-    Runtime *RuntimeConfig `json:"runtime,omitempty"`
-    // +optional
-    Scheduling *SchedulingConfig `json:"scheduling,omitempty"`
+	// +optional
+	Resources *ResourceConfig `json:"resources,omitempty"`
+	// +optional
+	Security *SecurityConfig `json:"security,omitempty"`
+	// +optional
+	Health *HealthConfig `json:"health,omitempty"`
+	// +optional
+	Runtime *RuntimeConfig `json:"runtime,omitempty"`
+	// +optional
+	Scheduling *SchedulingConfig `json:"scheduling,omitempty"`
 }
 
 // ResourceConfig defines resource requests and limits
 type ResourceConfig struct {
-    // +optional
-    Requests corev1.ResourceList `json:"requests,omitempty"`
-    // +optional
-    Limits corev1.ResourceList `json:"limits,omitempty"`
+	// +optional
+	Requests corev1.ResourceList `json:"requests,omitempty"`
+	// +optional
+	Limits corev1.ResourceList `json:"limits,omitempty"`
 }
 
 // SecurityConfig defines security context settings
 type SecurityConfig struct {
-    // +optional
-    SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // HealthConfig defines health check probes
 type HealthConfig struct {
-    // +optional
-    ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
-    // +optional
-    LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 }
 
 // RuntimeConfig defines runtime settings
 type RuntimeConfig struct {
-    // +optional
-    Env []corev1.EnvVar `json:"env,omitempty"`
-    // +optional
-    ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+	// +optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
+	// +optional
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
 // SchedulingConfig defines pod scheduling settings
 type SchedulingConfig struct {
-    // +optional
-    NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-    // +optional
-    Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
-    // +optional
-    Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
+
 // MCPServerSpec defines the desired state of MCPServer.8443
 type MCPServerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster

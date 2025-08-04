@@ -2,7 +2,7 @@ name: Release Helm Chart
 on:
   push:
     branches:
-      - feature/optimize-image-building
+      - main
 
 env:
   REGISTRY: ghcr.io

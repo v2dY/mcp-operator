@@ -62,7 +62,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - mcp.my.domain
+  - mcp-gen.io.github.v2dy
   resources:
   - mcpservers
   verbs:
@@ -74,13 +74,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mcp.my.domain
+  - mcp-gen.io.github.v2dy
   resources:
   - mcpservers/finalizers
   verbs:
   - update
 - apiGroups:
-  - mcp.my.domain
+  - mcp-gen.io.github.v2dy
   resources:
   - mcpservers/status
   verbs:

@@ -1,4 +1,4 @@
-# Contributing to Kubernetes MCP Operator
+# Contributing to KMCP
 
 First off, thanks for taking the time to contribute! We welcome all kinds of contributions: bug reports, feature suggestions, documentation improvements, and pull requests.
 
@@ -28,7 +28,7 @@ Want to improve something? Great!
 - Check if a similar suggestion already exists.
 - Explain the problem your feature would solve.
 - Be clear about your proposed solution.
-- Consider how it fits with our architecture (see [ADR-001](docs/adr/ADR-001.md)).
+- Consider how it fits with our architecture (see [ADR-001](docs/adr/ADR-001)).
 - Use the **Feature Request** issue template.
 
 ### 💻 Submitting Code
@@ -238,8 +238,8 @@ Releases are automated through GitHub Actions:
 
 ### 📚 Additional Resources
 
-- [Architecture Decision Record ADR-001](docs/adr/ADR-001.md)
-- [High Level Design](HLD.md)
+- [Architecture Decision Record ADR-001](docs/adr/ADR-001)
+- [HLD](HLD.md)
 - [Kubebuilder Documentation](https://book.kubebuilder.io/)
 - [Kubernetes API Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md)
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/)
@@ -253,4 +253,4 @@ If you need help:
 - Look at [example MCPServer resources](config/samples/)
 - Join our community discussions
 
-Thank you for contributing to the Kubernetes MCP Operator! 🎉
+Thank you for contributing to the KMCP! 🎉

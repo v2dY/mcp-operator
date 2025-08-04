@@ -1,6 +1,6 @@
 ---
 name: Pull Request
-about: Propose a change to the Kubernetes MCP Operator
+about: Propose a change to the KMCP
 title: ''
 labels: ''
 assignees: ''

@@ -24,7 +24,7 @@ import (
 	"text/template"
 	"time"
 
-	mcpv1 "github.com/v2dY/project/api/v1"
+	mcpv1 "github.com/v2dY/kmcp/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -72,9 +72,9 @@ const (
 	labelAppName           = "project"
 )
 
-// +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=mcp-gen.io.github.v2dy,resources=mcpservers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mcp-gen.io.github.v2dy,resources=mcpservers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=mcp-gen.io.github.v2dy,resources=mcpservers/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch

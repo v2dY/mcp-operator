@@ -1,4 +1,4 @@
-# Kubernetes MCP generator operator
+# KMCP: Kubernetes MCP Operator
 The MCP Generator Operator simplifies the development of agentic applications by automating the creation of a protocol layer between AI agents and existing systems that expose HTTP APIs. By parsing OpenAPI specifications and generating a Model Context Protocol (MCP), it enables seamless, structured interaction between autonomous agents and external services, accelerating integration and reducing manual overhead.
 
 ## Description
@@ -30,14 +30,14 @@ helm install release-name oci://ghcr.io/v2dy/project/chart/helm:0.1.0
 
 ```bash
 cat <<EOF | kubectl apply -f -
-apiVersion: mcp.my.domain/v1
+apiVersion: mcp-gen.io.github.v2dy/v1
 kind: MCPServer
 metadata:
   namespace: default
   labels:
     app.kubernetes.io/name: operator
     app.kubernetes.io/managed-by: kustomize
-  name: mcpserver-sample4
+  name: mcpserver-sample
 spec:
   replicas: 1
   url: "https://raw.githubusercontent.com/open-meteo/open-meteo/refs/heads/main/openapi.yml"

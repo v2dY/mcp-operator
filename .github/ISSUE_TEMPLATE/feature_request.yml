@@ -113,7 +113,7 @@ body:
       label: Example Configuration
       description: If applicable, provide an example of how this feature might be configured or used.
       placeholder: |
-        apiVersion: mcp.my.domain/v1
+        apiVersion: mcp-gen.io.github.v2dy/v1
         kind: MCPServer
         metadata:
           name: example

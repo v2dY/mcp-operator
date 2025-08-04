@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: mcpservers.mcp.my.domain
+  name: mcpservers.mcp-gen.io.github.v2dy
 spec:
-  group: mcp.my.domain
+  group: mcp-gen.io.github.v2dy
   names:
     kind: MCPServer
     listKind: MCPServerList

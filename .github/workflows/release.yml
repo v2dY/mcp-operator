@@ -1,70 +1,141 @@
-name: Release Helm Chart
+name: Release
+
 on:
   push:
-    branches:
-      - feature/optimize-image-building
+    tags:
+      - 'v*'  # Matches v0.0.0, v1.2.3, etc.
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ghcr.io/v2dy/kmcp
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
+      id-token: write
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate version and image name
-        id: version
-        run: |
-          VERSION="0.2.0-dev.$(date +%Y%m%d%H%M%S)"
-          IMAGE_NAME=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
-          echo "Image name: $IMAGE_NAME"
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
-        run: make docker-build IMG=${{ steps.version.outputs.image_name }}:${{ steps.version.outputs.version }}
-  
-      - name: Push Docker image
-        run: make docker-push IMG=${{ steps.version.outputs.image_name }}:${{ steps.version.outputs.version }}
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=tag
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
 
-      - name: Generate Helm chart
-        run: |
-          go install github.com/arttor/helmify/cmd/helmify@latest
-          make helm
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: 'v3.14.0'
+    - name: Install tools and dependencies
+      run: |
+        # Install kubebuilder tools
+        make kustomize controller-gen
         
-      - name: Package and Push Helm Chart
-        run: |
-          sed -i "s/version: .*/version: ${{ steps.version.outputs.version }}/" helm/Chart.yaml
-          sed -i "s/appVersion: .*/appVersion: ${{ steps.version.outputs.version }}/" helm/Chart.yaml
-          
-          sed -i "s/VERSION_PLACEHOLDER/${{ steps.version.outputs.version }}/g" helm/values.yaml
-           
-          helm package helm/ --destination .
-           
-          helm push *.tgz oci://$(echo "${{ env.REGISTRY }}/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')/chart
+        # Install helmify
+        go install github.com/arttor/helmify/cmd/helmify@latest
+
+    - name: Generate manifests
+      run: |
+        make manifests generate
+
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: '3.13.0'
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build installer and generate Helm chart
+      run: |
+        # Extract version from tag
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "Building for version: $VERSION"
+        
+        # Build installer with the tagged image
+        IMG=${{ env.IMAGE_NAME }}:$VERSION make build-installer
+        
+        # Generate Helm chart
+        make helm
+        
+        # Verify Helm chart was generated
+        if [ ! -f "helm/Chart.yaml" ]; then
+          echo "Error: Helm chart generation failed"
+          exit 1
+        fi
+        
+        # Update Helm chart version and appVersion
+        sed -i "s/version: .*/version: ${VERSION#v}/" helm/Chart.yaml
+        sed -i "s/appVersion: .*/appVersion: \"$VERSION\"/" helm/Chart.yaml
+        
+        # Update image tag in values.yaml (handle both 'latest' and 'VERSION_PLACEHOLDER')
+        sed -i "s/tag: latest/tag: \"$VERSION\"/" helm/values.yaml
+        sed -i "s/tag: \"VERSION_PLACEHOLDER\"/tag: \"$VERSION\"/" helm/values.yaml
+
+    - name: Package and push Helm chart
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        
+        # Update chart name to be more descriptive
+        sed -i "s/name: helm/name: mcp-operator/" helm/Chart.yaml
+        sed -i "s/description: A Helm chart for Kubernetes/description: A Helm chart for MCP Operator/" helm/Chart.yaml
+        
+        # Package Helm chart locally
+        helm package helm --destination ./dist
+        
+        # Verify package was created
+        if [ ! -f "dist/mcp-operator-${VERSION#v}.tgz" ]; then
+          echo "Error: Helm package not found"
+          ls -la dist/
+          exit 1
+        fi
+        
+        # Push Helm chart to ghcr.io as OCI artifact
+        helm push dist/mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy
+        
+        # Generate SHA256 checksum
+        cd dist
+        sha256sum *.tgz > checksums.txt
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/install.yaml
+          dist/*.tgz
+          dist/checksums.txt
+        generate_release_notes: true
+        prerelease: ${{ contains(github.ref_name, '-') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

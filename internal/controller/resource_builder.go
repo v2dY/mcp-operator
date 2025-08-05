@@ -59,9 +59,9 @@ type ResourceBuilder struct {
 }
 
 // NewResourceBuilder creates a new resource builder
-func NewResourceBuilder(client client.Client, scheme *runtime.Scheme) *ResourceBuilder {
+func NewResourceBuilder(c client.Client, scheme *runtime.Scheme) *ResourceBuilder {
 	return &ResourceBuilder{
-		Client: client,
+		Client: c,
 		scheme: scheme,
 	}
 }

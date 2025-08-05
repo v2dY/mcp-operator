@@ -37,5 +37,5 @@ func TestMCPServerReconciler_Reconcile_NotFound(t *testing.T) {
 
 	// Should return without error (resource not found is handled gracefully)
 	assert.NoError(t, err)
-	assert.False(t, result.Requeue)
+	assert.Equal(t, int64(0), result.RequeueAfter.Nanoseconds())
 }

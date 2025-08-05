@@ -20,9 +20,9 @@ type StatusManager struct {
 }
 
 // NewStatusManager creates a new status manager
-func NewStatusManager(client client.Client) *StatusManager {
+func NewStatusManager(c client.Client) *StatusManager {
 	return &StatusManager{
-		Client: client,
+		Client: c,
 	}
 }
 

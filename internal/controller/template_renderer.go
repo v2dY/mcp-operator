@@ -33,6 +33,9 @@ func NewTemplateRenderer() *TemplateRenderer {
 }
 
 // getTemplatesDir returns the templates directory path
+// Note: Currently unused but kept for future dynamic template loading
+//
+//nolint:unused // Keeping for future use
 func getTemplatesDir() string {
 	// Try environment variable first
 	if dir := os.Getenv("TEMPLATES_DIR"); dir != "" {
@@ -78,15 +81,17 @@ func loadEmbeddedTemplate(templatePath string) *template.Template {
 }
 
 // loadTemplate loads a template file and panics on error (similar to template.Must)
-func loadTemplate(filepath string) *template.Template {
-	content, err := os.ReadFile(filepath)
+//
+//nolint:unused // Utility function for dynamic template loading
+func loadTemplate(templatePath string) *template.Template {
+	content, err := os.ReadFile(templatePath)
 	if err != nil {
-		panic(fmt.Sprintf("failed to read template file %s: %v", filepath, err))
+		panic(fmt.Sprintf("failed to read template file %s: %v", templatePath, err))
 	}
 
-	tmpl, err := template.New(filepath).Parse(string(content))
+	tmpl, err := template.New(templatePath).Parse(string(content))
 	if err != nil {
-		panic(fmt.Sprintf("failed to parse template file %s: %v", filepath, err))
+		panic(fmt.Sprintf("failed to parse template file %s: %v", templatePath, err))
 	}
 
 	return tmpl

@@ -34,9 +34,9 @@ type BuildManager struct {
 }
 
 // NewBuildManager creates a new build manager
-func NewBuildManager(client client.Client, scheme *runtime.Scheme) *BuildManager {
+func NewBuildManager(c client.Client, scheme *runtime.Scheme) *BuildManager {
 	return &BuildManager{
-		Client:           client,
+		Client:           c,
 		scheme:           scheme,
 		templateRenderer: NewTemplateRenderer(),
 	}

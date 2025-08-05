@@ -49,22 +49,19 @@ type DeploymentChanges struct {
 	Changes     []string
 }
 
-// GetChangesSummary returns a comma-separated summary of changes
 func (dc *DeploymentChanges) GetChangesSummary() string {
 	return strings.Join(dc.Changes, ", ")
 }
 
-// HasChanges returns true if any changes were detected
 func (dc *DeploymentChanges) HasChanges() bool {
 	return dc.Replicas || dc.PodTemplate
 }
 
-// TemplateData represents data for template rendering
 type TemplateData struct {
-	MCPServerName string // MCPServer name
-	Namespace     string // MCPServer namespace
-	OpenAPIUrl    string // OpenAPI URL
-	BasePath      string // API base path
-	Registry      string // Container registry
-	ImageName     string // Image name for buildah
+	MCPServerName string
+	Namespace     string
+	OpenAPIUrl    string
+	BasePath      string
+	Registry      string
+	ImageName     string
 }

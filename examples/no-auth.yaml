@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp-demo
+---
+apiVersion: mcp.my.domain/v1
+kind: MCPServer
+metadata:
+  namespace: mcp-demo
+  name: mcp-meteo
+spec:
+  url: "https://raw.githubusercontent.com/open-meteo/open-meteo/refs/heads/main/openapi.yml"
+  basePath: "https://api.open-meteo.com"
+  replicas: 1

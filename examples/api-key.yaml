@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp-demo
+---
+apiVersion: mcp.my.domain/v1
+kind: MCPServer
+metadata:
+  namespace: mcp-demo
+  name: mcpserver-kmcp-apikey-secrets-sample
+spec:
+  url: "https://api.openaq.org/openapi.json"
+  basePath: "https://api.openaq.org"
+  replicas: 1
+  auth:
+    apiKey:
+      location: "header"
+      name: "X-API-Key"
+      value:
+        secretRef:
+          name: "api-key-credentials"
+          key: "api-key"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: mcp-demo
+  name: api-key-credentials
+type: Opaque
+data:
+  api-key: "api-key"

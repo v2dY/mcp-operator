@@ -1,0 +1,18 @@
+apiVersion: mcp.v2dy.org/v1
+kind: MCPServer
+metadata:
+  labels:
+    app.kubernetes.io/name: project
+    app.kubernetes.io/managed-by: kustomize
+  name: mcpserver-kmcp-oauth2-sample
+spec:
+  legacy: false
+  url: "https://api.example.com/openapi.json"
+  basePath: "/v2"
+  replicas: 2
+  auth:
+    oauth2:
+      tokenUrl: "https://auth.example.com/oauth/token"
+      clientId: "your-client-id"
+      clientSecret: "your-client-secret"
+      scope: "read write"

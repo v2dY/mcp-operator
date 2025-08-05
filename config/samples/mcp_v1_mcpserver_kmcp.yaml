@@ -1,0 +1,16 @@
+apiVersion: mcp.v2dy.org/v1
+kind: MCPServer
+metadata:
+  labels:
+    app.kubernetes.io/name: project
+    app.kubernetes.io/managed-by: kustomize
+  name: mcpserver-kmcp-sample
+spec:
+  legacy: false
+  url: "https://api.example.com/openapi.json"
+  basePath: "/api/v1"
+  replicas: 1
+  auth:
+    basic:
+      username: "api-user"
+      password: "api-password"

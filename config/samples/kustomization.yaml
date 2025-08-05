@@ -1,4 +1,9 @@
 ## Append samples of your project ##
 resources:
 - mcp_v1_mcpserver.yaml
+- mcp_v1_mcpserver_kmcp.yaml
+- mcp_v1_mcpserver_kmcp_oauth2.yaml
+- mcp_v1_mcpserver_kmcp_secrets.yaml
+- mcp_v1_mcpserver_kmcp_oauth_secrets.yaml
+- mcp_v1_mcpserver_kmcp_apikey_secrets.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// GetLabels returns standard labels for MCPServer resources
 func GetLabels(mcpServer *mcpv1.MCPServer) map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":       labelAppName,
@@ -19,7 +18,6 @@ func GetLabels(mcpServer *mcpv1.MCPServer) map[string]string {
 	}
 }
 
-// GetTemplateData creates template data from MCPServer
 func GetTemplateData(mcpServer *mcpv1.MCPServer) TemplateData {
 	if mcpServer == nil {
 		return TemplateData{}
@@ -40,7 +38,6 @@ func GetTemplateData(mcpServer *mcpv1.MCPServer) TemplateData {
 	}
 }
 
-// DetectDeploymentChanges compares desired vs actual deployment and returns what changed
 func DetectDeploymentChanges(desired, actual *appsv1.Deployment) *DeploymentChanges {
 	changes := &DeploymentChanges{
 		Changes: []string{},
@@ -56,7 +53,6 @@ func DetectDeploymentChanges(desired, actual *appsv1.Deployment) *DeploymentChan
 	// Check pod template changes
 	if podTemplateChanged(&desired.Spec.Template, &actual.Spec.Template) {
 		changes.PodTemplate = true
-		// Get detailed pod template changes
 		podChanges := detectPodTemplateChanges(&desired.Spec.Template, &actual.Spec.Template)
 		changes.Changes = append(changes.Changes, podChanges...)
 	}
@@ -64,7 +60,6 @@ func DetectDeploymentChanges(desired, actual *appsv1.Deployment) *DeploymentChan
 	return changes
 }
 
-// podTemplateChanged checks if pod template specs are different
 func podTemplateChanged(desired, actual *corev1.PodTemplateSpec) bool {
 	// Compare containers (main focus)
 	if len(desired.Spec.Containers) != len(actual.Spec.Containers) {
@@ -81,6 +76,8 @@ func podTemplateChanged(desired, actual *corev1.PodTemplateSpec) bool {
 		if desiredContainer.Image != actualContainer.Image ||
 			!reflect.DeepEqual(desiredContainer.Resources, actualContainer.Resources) ||
 			!reflect.DeepEqual(desiredContainer.Env, actualContainer.Env) ||
+			!reflect.DeepEqual(desiredContainer.Args, actualContainer.Args) ||
+			!reflect.DeepEqual(desiredContainer.Command, actualContainer.Command) ||
 			!reflect.DeepEqual(desiredContainer.ReadinessProbe, actualContainer.ReadinessProbe) ||
 			!reflect.DeepEqual(desiredContainer.LivenessProbe, actualContainer.LivenessProbe) ||
 			desiredContainer.ImagePullPolicy != actualContainer.ImagePullPolicy ||
@@ -100,7 +97,6 @@ func podTemplateChanged(desired, actual *corev1.PodTemplateSpec) bool {
 	return false
 }
 
-// detectPodTemplateChanges returns human-readable list of pod template changes
 func detectPodTemplateChanges(desired, actual *corev1.PodTemplateSpec) []string {
 	changes := []string{}
 
@@ -123,6 +119,14 @@ func detectPodTemplateChanges(desired, actual *corev1.PodTemplateSpec) []string 
 
 		if !reflect.DeepEqual(desiredContainer.Env, actualContainer.Env) {
 			changes = append(changes, fmt.Sprintf("container[%d].env: updated", i))
+		}
+
+		if !reflect.DeepEqual(desiredContainer.Args, actualContainer.Args) {
+			changes = append(changes, fmt.Sprintf("container[%d].args: updated", i))
+		}
+
+		if !reflect.DeepEqual(desiredContainer.Command, actualContainer.Command) {
+			changes = append(changes, fmt.Sprintf("container[%d].command: updated", i))
 		}
 
 		if !reflect.DeepEqual(desiredContainer.ReadinessProbe, actualContainer.ReadinessProbe) {

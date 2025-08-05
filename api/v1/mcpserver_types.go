@@ -90,6 +90,7 @@ type MCPServerSpec struct {
 	Url      string `json:"url,omitempty"`
 	BasePath string `json:"basePath,omitempty"`
 	// +optional
+	Registry string `json:"registry,omitempty"`
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"` // backward compatibility
 	// +optional

@@ -191,3 +191,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 # Rebuild with updated Makefile to fix YAML duplicates
+
+### Using a Custom Registry
+
+You can specify your own registry in the MCPServer spec. For example:
+
+```yaml
+apiVersion: mcp.my.domain/v1
+kind: MCPServer
+metadata:
+  name: example-mcp-server
+spec:
+  registry: "docker-registry.registry.svc.cluster.local:5000"
+  image: "mcp/example-server:latest"
+  replicas: 1
+```
+
+This allows you to use a custom Docker registry for storing images.

@@ -1800,6 +1800,8 @@ spec:
                         type: object
                     type: object
                 type: object
+              registry:
+                type: string
               replicas:
                 format: int32
                 minimum: 0

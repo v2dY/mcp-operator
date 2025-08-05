@@ -45,9 +45,7 @@ jobs:
         images: ${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=tag
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}}
+          latest
 
     - name: Install tools and dependencies
       run: |
@@ -111,18 +109,21 @@ jobs:
         sed -i "s/name: helm/name: mcp-operator/" helm/Chart.yaml
         sed -i "s/description: A Helm chart for Kubernetes/description: A Helm chart for MCP Operator/" helm/Chart.yaml
         
-        # Package Helm chart locally
+        # Package Helm chart locally with descriptive name
         helm package helm --destination ./dist
         
+        # Rename the package to be more descriptive
+        mv dist/mcp-operator-${VERSION#v}.tgz dist/helm-mcp-operator-${VERSION#v}.tgz
+        
         # Verify package was created
-        if [ ! -f "dist/mcp-operator-${VERSION#v}.tgz" ]; then
+        if [ ! -f "dist/helm-mcp-operator-${VERSION#v}.tgz" ]; then
           echo "Error: Helm package not found"
           ls -la dist/
           exit 1
         fi
         
         # Push Helm chart to ghcr.io as OCI artifact
-        helm push dist/mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy
+        helm push dist/helm-mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy
         
         # Generate SHA256 checksum
         cd dist

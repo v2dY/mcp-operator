@@ -39,6 +39,152 @@ spec:
           spec:
             description: MCPServerSpec defines the desired state of MCPServer.8443
             properties:
+              auth:
+                description: AuthConfig defines authentication configuration
+                properties:
+                  apiKey:
+                    description: APIKeyAuth defines API key authentication
+                    properties:
+                      location:
+                        type: string
+                      name:
+                        type: string
+                      value:
+                        description: ValueOrSecret represents a value that can be
+                          either a direct string or a reference to a secret
+                        properties:
+                          secretRef:
+                            description: SecretRef is a reference to a secret key
+                            properties:
+                              key:
+                                description: Key within the secret
+                                type: string
+                              name:
+                                description: Name of the secret
+                                type: string
+                              optional:
+                                description: Optional flag to specify if the secret
+                                  must exist
+                                type: boolean
+                            required:
+                            - key
+                            - name
+                            type: object
+                          value:
+                            description: Value is the direct string value
+                            type: string
+                        type: object
+                    required:
+                    - location
+                    - name
+                    - value
+                    type: object
+                  basic:
+                    description: BasicAuth defines basic authentication
+                    properties:
+                      password:
+                        description: ValueOrSecret represents a value that can be
+                          either a direct string or a reference to a secret
+                        properties:
+                          secretRef:
+                            description: SecretRef is a reference to a secret key
+                            properties:
+                              key:
+                                description: Key within the secret
+                                type: string
+                              name:
+                                description: Name of the secret
+                                type: string
+                              optional:
+                                description: Optional flag to specify if the secret
+                                  must exist
+                                type: boolean
+                            required:
+                            - key
+                            - name
+                            type: object
+                          value:
+                            description: Value is the direct string value
+                            type: string
+                        type: object
+                      username:
+                        type: string
+                    required:
+                    - password
+                    - username
+                    type: object
+                  bearer:
+                    description: BearerAuth defines bearer token authentication
+                    properties:
+                      token:
+                        description: ValueOrSecret represents a value that can be
+                          either a direct string or a reference to a secret
+                        properties:
+                          secretRef:
+                            description: SecretRef is a reference to a secret key
+                            properties:
+                              key:
+                                description: Key within the secret
+                                type: string
+                              name:
+                                description: Name of the secret
+                                type: string
+                              optional:
+                                description: Optional flag to specify if the secret
+                                  must exist
+                                type: boolean
+                            required:
+                            - key
+                            - name
+                            type: object
+                          value:
+                            description: Value is the direct string value
+                            type: string
+                        type: object
+                    required:
+                    - token
+                    type: object
+                  oauth2:
+                    description: OAuth2Auth defines OAuth2 authentication
+                    properties:
+                      clientId:
+                        type: string
+                      clientSecret:
+                        description: ValueOrSecret represents a value that can be
+                          either a direct string or a reference to a secret
+                        properties:
+                          secretRef:
+                            description: SecretRef is a reference to a secret key
+                            properties:
+                              key:
+                                description: Key within the secret
+                                type: string
+                              name:
+                                description: Name of the secret
+                                type: string
+                              optional:
+                                description: Optional flag to specify if the secret
+                                  must exist
+                                type: boolean
+                            required:
+                            - key
+                            - name
+                            type: object
+                          value:
+                            description: Value is the direct string value
+                            type: string
+                        type: object
+                      scope:
+                        type: string
+                      tokenUrl:
+                        type: string
+                    required:
+                    - clientId
+                    - clientSecret
+                    - scope
+                    - tokenUrl
+                    type: object
+                type: object
               basePath:
                 type: string
               deploymentName:
@@ -160,6 +306,9 @@ spec:
                   - name
                   type: object
                 type: array
+              legacy:
+                default: false
+                type: boolean
               podTemplate:
                 description: Containers []corev1.Container `json:"containers,omitempty"`
                 properties:

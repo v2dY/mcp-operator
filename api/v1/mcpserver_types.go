@@ -21,9 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-// PodTemplateConfig defines pod-level configuration options
 type PodTemplateConfig struct {
 	// +optional
 	Resources *ResourceConfig `json:"resources,omitempty"`
@@ -37,7 +34,6 @@ type PodTemplateConfig struct {
 	Scheduling *SchedulingConfig `json:"scheduling,omitempty"`
 }
 
-// ResourceConfig defines resource requests and limits
 type ResourceConfig struct {
 	// +optional
 	Requests corev1.ResourceList `json:"requests,omitempty"`
@@ -45,13 +41,11 @@ type ResourceConfig struct {
 	Limits corev1.ResourceList `json:"limits,omitempty"`
 }
 
-// SecurityConfig defines security context settings
 type SecurityConfig struct {
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
-// HealthConfig defines health check probes
 type HealthConfig struct {
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
@@ -59,7 +53,6 @@ type HealthConfig struct {
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 }
 
-// RuntimeConfig defines runtime settings
 type RuntimeConfig struct {
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
@@ -67,7 +60,6 @@ type RuntimeConfig struct {
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
-// SchedulingConfig defines pod scheduling settings
 type SchedulingConfig struct {
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
@@ -77,11 +69,75 @@ type SchedulingConfig struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
-// MCPServerSpec defines the desired state of MCPServer.8443
-type MCPServerSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+type AuthConfig struct {
+	// +optional
+	Basic *BasicAuth `json:"basic,omitempty"`
+	// +optional
+	Bearer *BearerAuth `json:"bearer,omitempty"`
+	// +optional
+	APIKey *APIKeyAuth `json:"apiKey,omitempty"`
+	// +optional
+	OAuth2 *OAuth2Auth `json:"oauth2,omitempty"`
+}
 
+// SecretRef is a simplified reference to a secret key
+type SecretRef struct {
+	// Name of the secret
+	Name string `json:"name"`
+	// Key within the secret
+	Key string `json:"key"`
+	// Optional flag to specify if the secret must exist
+	// +optional
+	Optional *bool `json:"optional,omitempty"`
+}
+
+// ValueOrSecret represents a value that can be either a direct string or a reference to a secret
+type ValueOrSecret struct {
+	// Value is the direct string value
+	// +optional
+	Value *string `json:"value,omitempty"`
+	// SecretRef is a reference to a secret key
+	// +optional
+	SecretRef *SecretRef `json:"secretRef,omitempty"`
+}
+
+// BasicAuth defines basic authentication
+type BasicAuth struct {
+	// +kubebuilder:validation:Required
+	Username string `json:"username"`
+	// +kubebuilder:validation:Required
+	Password *ValueOrSecret `json:"password,omitempty"`
+}
+
+// BearerAuth defines bearer token authentication
+type BearerAuth struct {
+	// +kubebuilder:validation:Required
+	Token *ValueOrSecret `json:"token,omitempty"`
+}
+
+// APIKeyAuth defines API key authentication
+type APIKeyAuth struct {
+	// +kubebuilder:validation:Required
+	Location string `json:"location"`
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+	// +kubebuilder:validation:Required
+	Value *ValueOrSecret `json:"value,omitempty"`
+}
+
+// OAuth2Auth defines OAuth2 authentication
+type OAuth2Auth struct {
+	// +kubebuilder:validation:Required
+	TokenURL string `json:"tokenUrl"`
+	// +kubebuilder:validation:Required
+	ClientID string `json:"clientId"`
+	// +kubebuilder:validation:Required
+	ClientSecret *ValueOrSecret `json:"clientSecret"`
+	// +kubebuilder:validation:Required
+	Scope string `json:"scope,omitempty"`
+}
+
+type MCPServerSpec struct {
 	// +optional
 	DeploymentName string `json:"deploymentName,omitempty"`
 	// +optional
@@ -92,17 +148,18 @@ type MCPServerSpec struct {
 	// +optional
 	Registry string `json:"registry,omitempty"`
 	// +optional
+	// +kubebuilder:default=false
+	Legacy *bool `json:"legacy,omitempty"`
+	// +optional
+	Auth *AuthConfig `json:"auth,omitempty"`
+	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"` // backward compatibility
 	// +optional
-	// Containers []corev1.Container `json:"containers,omitempty"`
 	PodTemplate *PodTemplateConfig `json:"podTemplate,omitempty"`
 }
 
-// MCPServerStatus defines the observed state of MCPServer.
 type MCPServerStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 // +kubebuilder:object:root=true

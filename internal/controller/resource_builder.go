@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	mcpv1 "github.com/v2dY/project/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,30 +16,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Builder interface for image building strategies
+const (
+	KMCPImage     = "ghcr.io/v2dy/mcp-gen:0.1.0"
+	PrebuiltImage = "sarco3t/openapi-mcp-generator:1.0.6"
+	ContainerPort = 3001
+)
+
 type Builder interface {
 	GetImage(mcpServer *mcpv1.MCPServer) (string, error)
 }
 
-// PrebuiltBuilder strategy for using prebuilt images
 type PrebuiltBuilder struct{}
 
-// GetImage gets the image for prebuilt strategy
 func (b *PrebuiltBuilder) GetImage(mcpServer *mcpv1.MCPServer) (string, error) {
 	if mcpServer.Spec.Registry != "" {
-		// Use the specified registry with the MCPServer name as tag
 		return fmt.Sprintf("%s/mcp-server:%s", mcpServer.Spec.Registry, mcpServer.Name), nil
 	}
-	// Default prebuilt image when no registry is specified
-	return "sarco3t/openapi-mcp-generator:1.0.6", nil
+	return PrebuiltImage, nil
 }
 
-// BuildahBuilder strategy for building images with Buildah
 type BuildahBuilder struct {
 	buildManager *BuildManager
 }
 
-// GetImage builds the image with Buildah
 func (b *BuildahBuilder) GetImage(mcpServer *mcpv1.MCPServer) (string, error) {
 	buildCompleted, requeueAfter, err := b.buildManager.ReconcileBuild(context.Background(), mcpServer)
 	if err != nil {
@@ -52,13 +52,17 @@ func (b *BuildahBuilder) GetImage(mcpServer *mcpv1.MCPServer) (string, error) {
 	return fmt.Sprintf("%s/mcp-server:%s", mcpServer.Spec.Registry, mcpServer.Name), nil
 }
 
-// ResourceBuilder handles resource creation
+type KMCPBuilder struct{}
+
+func (k *KMCPBuilder) GetImage(mcpServer *mcpv1.MCPServer) (string, error) {
+	return KMCPImage, nil
+}
+
 type ResourceBuilder struct {
 	client.Client
 	scheme *runtime.Scheme
 }
 
-// NewResourceBuilder creates a new resource builder
 func NewResourceBuilder(c client.Client, scheme *runtime.Scheme) *ResourceBuilder {
 	return &ResourceBuilder{
 		Client: c,
@@ -66,17 +70,19 @@ func NewResourceBuilder(c client.Client, scheme *runtime.Scheme) *ResourceBuilde
 	}
 }
 
-// BuildDeployment builds a deployment for MCPServer
 func (rb *ResourceBuilder) BuildDeployment(mcpServer *mcpv1.MCPServer) (*appsv1.Deployment, error) {
 	labels := GetLabels(mcpServer)
 
-	// Dynamically choose builder based on registry field
 	var builder Builder
+	isLegacy := mcpServer.Spec.Legacy == nil || *mcpServer.Spec.Legacy
+
 	if mcpServer.Spec.Registry == "" {
-		// If no registry specified, use PrebuiltBuilder (default prebuilt image)
-		builder = &PrebuiltBuilder{}
+		if !isLegacy {
+			builder = &KMCPBuilder{}
+		} else {
+			builder = &PrebuiltBuilder{}
+		}
 	} else {
-		// If registry is specified, use BuildahBuilder to build the image and push to registry
 		builder = &BuildahBuilder{buildManager: NewBuildManager(rb.Client, rb.scheme)}
 	}
 
@@ -113,7 +119,6 @@ func (rb *ResourceBuilder) BuildDeployment(mcpServer *mcpv1.MCPServer) (*appsv1.
 	return dep, nil
 }
 
-// buildContainer builds container spec
 func (rb *ResourceBuilder) buildContainer(mcpServer *mcpv1.MCPServer, image string) corev1.Container {
 	container := corev1.Container{
 		Name:            "mcp",
@@ -121,15 +126,44 @@ func (rb *ResourceBuilder) buildContainer(mcpServer *mcpv1.MCPServer, image stri
 		ImagePullPolicy: corev1.PullAlways,
 		SecurityContext: rb.getDefaultContainerSecurityContext(),
 		Ports: []corev1.ContainerPort{{
-			ContainerPort: 3001,
+			ContainerPort: ContainerPort,
 			Name:          "http",
 		}},
 		Env: mcpServer.Spec.Env,
 	}
 
-	// For prebuilt image, we need to pass OpenAPI URL and base path as arguments
-	if mcpServer.Spec.Registry == "" {
-		// Using prebuilt image sarco3t/openapi-mcp-generator:1.0.6
+	isLegacy := mcpServer.Spec.Legacy == nil || *mcpServer.Spec.Legacy
+
+	if !isLegacy {
+		args := []string{"generate", "--path", mcpServer.Spec.Url}
+		args = append(args, "--host", "0.0.0.0")
+		args = append(args, "--port", fmt.Sprintf("%d", ContainerPort))
+		if mcpServer.Spec.BasePath != "" {
+			args = append(args, "--base-url", mcpServer.Spec.BasePath)
+		}
+
+		var needsShell bool
+		if mcpServer.Spec.Auth != nil {
+			authArgs, authEnv := rb.buildAuthArgsAndEnv(mcpServer.Spec.Auth)
+			args = append(args, authArgs...)
+			container.Env = append(container.Env, authEnv...)
+
+			for _, arg := range authArgs {
+				if len(arg) > 2 && arg[0] == '$' && arg[1] == '{' {
+					needsShell = true
+					break
+				}
+			}
+		}
+
+		if needsShell {
+			fullCommand := "openapi-to-mcp " + strings.Join(args, " ")
+			container.Command = []string{"/bin/sh", "-c"}
+			container.Args = []string{fullCommand}
+		} else {
+			container.Args = args
+		}
+	} else if mcpServer.Spec.Registry == "" {
 		args := []string{mcpServer.Spec.Url}
 		if mcpServer.Spec.BasePath != "" {
 			args = append(args, mcpServer.Spec.BasePath)
@@ -139,6 +173,106 @@ func (rb *ResourceBuilder) buildContainer(mcpServer *mcpv1.MCPServer, image stri
 
 	rb.mergeContainerConfiguration(mcpServer, &container)
 	return container
+}
+
+func (rb *ResourceBuilder) buildAuthArgsAndEnv(auth *mcpv1.AuthConfig) ([]string, []corev1.EnvVar) {
+	var args []string
+	var env []corev1.EnvVar
+
+	if auth.Basic != nil {
+		args = append(args, "--auth-type", "basic")
+		args = append(args, "--basic-username", auth.Basic.Username)
+
+		if auth.Basic.Password != nil {
+			argValue, envVar := rb.resolveValueOrSecret(auth.Basic.Password, "BASIC_PASSWORD")
+			if envVar != nil {
+				env = append(env, *envVar)
+			}
+			args = append(args, "--basic-password", argValue)
+		}
+	}
+
+	if auth.Bearer != nil && auth.Bearer.Token != nil {
+		args = append(args, "--auth-type", "bearer")
+		argValue, envVar := rb.resolveValueOrSecret(auth.Bearer.Token, "BEARER_TOKEN")
+		if envVar != nil {
+			env = append(env, *envVar)
+		}
+		args = append(args, "--bearer-token", argValue)
+	}
+
+	if auth.APIKey != nil {
+		args = append(args, "--auth-type", "api_key")
+		args = append(args, "--api-key-location", auth.APIKey.Location)
+		args = append(args, "--api-key-name", auth.APIKey.Name)
+
+		if auth.APIKey.Value != nil {
+			argValue, envVar := rb.resolveValueOrSecret(auth.APIKey.Value, "API_KEY_VALUE")
+			if envVar != nil {
+				env = append(env, *envVar)
+			}
+			args = append(args, "--api-key-value", argValue)
+		}
+	}
+
+	if auth.OAuth2 != nil {
+		args = append(args, "--auth-type", "oauth2")
+		args = append(args, "--oauth-token-url", auth.OAuth2.TokenURL)
+		args = append(args, "--oauth-client-id", auth.OAuth2.ClientID)
+
+		if auth.OAuth2.ClientSecret != nil {
+			argValue, envVar := rb.resolveValueOrSecret(auth.OAuth2.ClientSecret, "OAUTH_CLIENT_SECRET")
+			if envVar != nil {
+				env = append(env, *envVar)
+			}
+			args = append(args, "--oauth-client-secret", argValue)
+		}
+
+		if auth.OAuth2.Scope != "" {
+			args = append(args, "--oauth-scope", auth.OAuth2.Scope)
+		}
+	}
+
+	if args == nil {
+		args = []string{}
+	}
+	if env == nil {
+		env = []corev1.EnvVar{}
+	}
+
+	return args, env
+}
+
+func (rb *ResourceBuilder) resolveValueOrSecret(valueOrSecret *mcpv1.ValueOrSecret, envVarName string) (string, *corev1.EnvVar) {
+	if valueOrSecret == nil {
+		return "", nil
+	}
+
+	if valueOrSecret.Value != nil {
+		return *valueOrSecret.Value, nil
+	}
+
+	if valueOrSecret.SecretRef != nil {
+		env := &corev1.EnvVar{
+			Name: envVarName,
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: valueOrSecret.SecretRef.Name,
+					},
+					Key:      valueOrSecret.SecretRef.Key,
+					Optional: valueOrSecret.SecretRef.Optional,
+				},
+			},
+		}
+		return "${" + envVarName + "}", env
+	}
+
+	return "", nil
+} // buildAuthArgs builds authentication arguments for kmcp command (deprecated, use buildAuthArgsAndEnv)
+func (rb *ResourceBuilder) buildAuthArgs(auth *mcpv1.AuthConfig) []string {
+	args, _ := rb.buildAuthArgsAndEnv(auth)
+	return args
 }
 
 // BuildService builds a service for MCPServer
@@ -153,8 +287,8 @@ func (rb *ResourceBuilder) BuildService(mcpServer *mcpv1.MCPServer) (*corev1.Ser
 		Spec: corev1.ServiceSpec{
 			Selector: labels,
 			Ports: []corev1.ServicePort{{
-				Port:       3001,
-				TargetPort: intstr.FromInt(3001),
+				Port:       ContainerPort,
+				TargetPort: intstr.FromInt(ContainerPort),
 				Protocol:   corev1.ProtocolTCP,
 				Name:       "http",
 			}},
@@ -169,7 +303,6 @@ func (rb *ResourceBuilder) BuildService(mcpServer *mcpv1.MCPServer) (*corev1.Ser
 	return svc, nil
 }
 
-// getDefaultPodSecurityContext returns default pod security context
 func (rb *ResourceBuilder) getDefaultPodSecurityContext() *corev1.PodSecurityContext {
 	return &corev1.PodSecurityContext{
 		RunAsNonRoot: ptr.To(true),
@@ -179,7 +312,6 @@ func (rb *ResourceBuilder) getDefaultPodSecurityContext() *corev1.PodSecurityCon
 	}
 }
 
-// getDefaultContainerSecurityContext returns default container security context
 func (rb *ResourceBuilder) getDefaultContainerSecurityContext() *corev1.SecurityContext {
 	return &corev1.SecurityContext{
 		RunAsNonRoot:             ptr.To(true),

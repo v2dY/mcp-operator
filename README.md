@@ -24,9 +24,18 @@ This approach is especially useful in agentic systems where an LLM-driven agent 
 
 [Code](docs/demo.yml)
 ## Install
+
+### Using Helm
+
+Install the MCP operator using Helm:
+
 ```bash
-helm install release-name oci://ghcr.io/v2dy/project/chart/helm:0.1.0
+helm install mcp-operator oci://ghcr.io/v2dy/mcp-operator --version 0.2.0
 ```
+
+## Quick Start
+
+After installation, create an MCP server by applying this example:
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -43,21 +52,24 @@ spec:
   url: "https://raw.githubusercontent.com/open-meteo/open-meteo/refs/heads/main/openapi.yml"
   basePath: "https://api.open-meteo.com"
 EOF
-
 ```
-example [CRD](config/samples//mcp_v1_mcpserver.yaml)
 
+For more examples, see the [sample CRD configuration](config/samples/mcp_v1_mcpserver.yaml) and additional examples in the [examples/](examples/) folder.
 
 ## Demo
 
-## Docs
- [ADR-001](docs/adr/ADR-001.md)
- 
- [HLD](HLD.md)
+Watch the demo video: [Video](media/demo.mp4)
 
- ![Diagram work](docs/work_diagram.jpg)
+See the demo configuration: [Code](docs/demo.yml)
 
-# Development
+## Documentation
+
+- [Architecture Decision Record](docs/adr/ADR-001.md)
+- [High Level Design](HLD.md)
+
+![System Architecture](docs/work_diagram.jpg)
+
+## Development
 
 
 
@@ -92,17 +104,17 @@ make install
 make deploy IMG=<some-registry>/operator:tag
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin privileges or be logged in as admin.
 
-**Create instances of your solution**
+**Create instances of your solution:**
+
 You can apply the samples (examples) from the config/sample:
 
 ```sh
 kubectl apply -k config/samples/
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+> **NOTE**: Ensure that the samples have default values to test it out.
 
 ### To Uninstall
 **Delete the instances (CRs) from the cluster:**
@@ -123,6 +135,19 @@ make uninstall
 make undeploy
 ```
 
+## Releases
+
+The project uses GitHub Actions for automated releases. When you push a tag (e.g., `v1.0.0`), it automatically:
+
+- Builds and pushes Docker images for multiple architectures (amd64, arm64)
+- Creates Helm charts with proper versioning
+- Generates Kubernetes installer manifests
+- Publishes release artifacts to GitHub Releases
+
+Release artifacts include:
+- `helm-mcp-operator-{version}.tgz` - Helm chart package
+- `checksums.txt` - SHA256 checksums for verification
+
 ## Project Distribution
 
 Following the options to release and provide this solution to the users.
@@ -142,33 +167,36 @@ dependencies.
 
 2. Using the installer
 
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/operator/<tag or branch>/dist/install.yaml
-```
+For development purposes, you can use the locally generated installer after building it with the make target above.
 
 ### By providing a Helm Chart
 
-1. Build the chart using the optional helm plugin
+The project automatically generates and publishes Helm charts as OCI artifacts. Users can install using:
 
 ```sh
-kubebuilder edit --plugins=helm/v1-alpha
+helm install mcp-operator oci://ghcr.io/v2dy/mcp-operator --version <version>
 ```
 
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
+The Helm chart is generated from the Kubernetes manifests and includes:
+- Configurable resource limits and requests
+- Security contexts and RBAC configurations  
+- Service account and metrics service setup
+- Customizable container registry settings
 
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
+**NOTE:** The Helm chart is automatically updated during the release process. When you create a new release, the chart version and app version are automatically synchronized with the release tag.
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+
+We welcome contributions! To contribute to this project:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes and add tests
+4. Commit your changes (`git commit -m 'Add some amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+Please ensure your code follows the project's coding standards and includes appropriate tests.
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
 
@@ -189,22 +217,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-# Rebuild with updated Makefile to fix YAML duplicates
-
-### Using a Custom Registry
-
-You can specify your own registry in the MCPServer spec. For example:
-
-```yaml
-apiVersion: mcp.my.domain/v1
-kind: MCPServer
-metadata:
-  name: example-mcp-server
-spec:
-  registry: "docker-registry.registry.svc.cluster.local:5000"
-  image: "mcp/example-server:latest"
-  replicas: 1
-```
-
-This allows you to use a custom Docker registry for storing images.

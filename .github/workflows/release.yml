@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/v2dy/kmcp
+  IMAGE_NAME: ghcr.io/v2dy/mcp-operator
 
 jobs:
   release:
@@ -125,7 +125,7 @@ jobs:
         fi
         
         # Push Helm chart to ghcr.io as OCI artifact
-        helm push dist/helm-mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy
+        helm push dist/helm-mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy/helm-mcp-operator
         
         # Generate SHA256 checksum
         cd dist

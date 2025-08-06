@@ -124,8 +124,8 @@ jobs:
           exit 1
         fi
         
-        # Push Helm chart to ghcr.io as OCI artifact
-        helm push dist/helm-mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy/mcp-operator
+        # Push Helm chart to ghcr.io as OCI artifact with helm prefix
+        helm push dist/helm-mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy/helm-mcp-operator
         
         # Generate SHA256 checksum
         cd dist

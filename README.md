@@ -56,6 +56,92 @@ EOF
 
 For more examples, see the [sample CRD configuration](config/samples/mcp_v1_mcpserver.yaml) and additional examples in the [examples/](examples/) folder.
 
+## Local Registry for Testing
+
+For faster development and testing, you can set up a local Docker registry within your Kubernetes cluster. This eliminates the need to pull images from external registries and speeds up the build process for MCP servers.
+
+### Setting up Local Registry
+
+Create a local registry in your cluster:
+
+```bash
+# Create registry namespace
+kubectl create namespace registry
+
+# Deploy the registry
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker-registry
+  namespace: registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docker-registry
+  template:
+    metadata:
+      labels:
+        app: docker-registry
+    spec:
+      containers:
+      - name: registry
+        image: registry:2
+        ports:
+        - containerPort: 5000
+        env:
+        - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+          value: /var/lib/registry
+        volumeMounts:
+        - name: registry-storage
+          mountPath: /var/lib/registry
+      volumes:
+      - name: registry-storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-registry
+  namespace: registry
+spec:
+  selector:
+    app: docker-registry
+  ports:
+  - port: 5000
+    targetPort: 5000
+EOF
+```
+
+### Configure MCP Operator for Local Registry
+
+Update your MCP Operator deployment to use the local registry:
+
+```bash
+# Configure the operator to use local registry for built images
+kubectl set env deployment/mcp-operator-controller-manager \
+  REGISTRY_URL=docker-registry.registry.svc.cluster.local:5000 \
+  -n mcp-operator-system
+```
+
+### Benefits of Local Registry
+
+- **Faster builds**: No external network dependency for image storage
+- **Isolated testing**: Images remain within your cluster
+- **Reduced bandwidth**: No external image pulls during development
+- **Quick iteration**: Faster feedback loop for testing changes
+
+### Cleanup
+
+To remove the local registry:
+
+```bash
+kubectl delete namespace registry
+```
+
+> **Note**: The local registry uses ephemeral storage. Images will be lost when the pod is restarted. For persistent storage in production-like testing, consider using a PersistentVolume.
+
 ## Demo
 
 Watch the demo video: [Video](media/demo.mp4)

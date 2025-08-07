@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/v2dy/kmcp
+  IMAGE_NAME: ghcr.io/v2dy/mcp-operator
 
 jobs:
   release:
@@ -45,6 +45,7 @@ jobs:
         images: ${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=tag
+          type=raw,value=latest
 
     - name: Install tools and dependencies
       run: |
@@ -73,6 +74,8 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
 
     - name: Build installer and generate Helm chart
       run: |
@@ -96,7 +99,7 @@ jobs:
         sed -i "s/version: .*/version: ${VERSION#v}/" helm/Chart.yaml
         sed -i "s/appVersion: .*/appVersion: \"$VERSION\"/" helm/Chart.yaml
         
-        # Update image tag in values.yaml (handle both 'latest' and 'VERSION_PLACEHOLDER')
+        # Update image tag in values.yaml
         sed -i "s/tag: latest/tag: \"$VERSION\"/" helm/values.yaml
         sed -i "s/tag: \"VERSION_PLACEHOLDER\"/tag: \"$VERSION\"/" helm/values.yaml
 
@@ -105,24 +108,21 @@ jobs:
         VERSION=${GITHUB_REF#refs/tags/}
         
         # Update chart name to be more descriptive
-        sed -i "s/name: helm/name: mcp-operator/" helm/Chart.yaml
+        sed -i "s/name: helm/name: helm-mcp-operator/" helm/Chart.yaml
         sed -i "s/description: A Helm chart for Kubernetes/description: A Helm chart for MCP Operator/" helm/Chart.yaml
-        
+
         # Package Helm chart locally with descriptive name
         helm package helm --destination ./dist
-        
-        # Rename the package to be more descriptive
-        mv dist/mcp-operator-${VERSION#v}.tgz dist/helm-mcp-operator-${VERSION#v}.tgz
-        
+
         # Verify package was created
         if [ ! -f "dist/helm-mcp-operator-${VERSION#v}.tgz" ]; then
           echo "Error: Helm package not found"
           ls -la dist/
           exit 1
         fi
-        
-        # Push Helm chart to ghcr.io as OCI artifact
-        helm push dist/helm-mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy
+
+        # Push Helm chart to ghcr.io as OCI artifact with helm prefix
+        helm push dist/helm-mcp-operator-${VERSION#v}.tgz oci://${{ env.REGISTRY }}/v2dy/mcp-operator
         
         # Generate SHA256 checksum
         cd dist

@@ -132,7 +132,7 @@ helm: build-installer
 	echo "" >> helm/values.yaml
 	echo "nameOverride: mcp-operator" >> helm/values.yaml
 	echo "fullnameOverride: mcp-operator" >> helm/values.yaml
-	sed -i 's|repository: controller|repository: ghcr.io/v2dy/kmcp|g' helm/values.yaml
+	sed -i 's|repository: controller|repository: ghcr.io/v2dy/mcp-operator|g' helm/values.yaml
 	sed -i 's|tag: latest|tag: "VERSION_PLACEHOLDER"|g' helm/values.yaml
 	sed -i '/serviceAccountName:/a\      imagePullSecrets:\n      - name: ghcr-secret' helm/templates/deployment.yaml
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple

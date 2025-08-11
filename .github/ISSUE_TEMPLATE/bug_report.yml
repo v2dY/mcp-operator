@@ -1,0 +1,147 @@
+name: Bug Report
+description: File a bug report to help us improve the Kubernetes MCP Operator
+title: "[Bug]: "
+labels: ["bug", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! 
+        
+        Before submitting, please check if a similar issue already exists.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened and what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Please provide clear steps to reproduce the issue.
+      placeholder: |
+        1. Deploy MCPServer with configuration '...'
+        2. Run command '...'
+        3. See error
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+      placeholder: Describe the expected behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what actually happened instead.
+    validations:
+      required: true
+
+  - type: input
+    id: k8s-version
+    attributes:
+      label: Kubernetes Version
+      description: Run `kubectl version` and provide the output
+      placeholder: "e.g., Client Version: v1.29.0, Server Version: v1.29.0"
+    validations:
+      required: true
+
+  - type: input
+    id: operator-version
+    attributes:
+      label: Operator Version
+      description: What version of the Kubernetes MCP Operator are you running?
+      placeholder: "e.g., v0.1.0 or commit hash"
+    validations:
+      required: true
+
+  - type: textarea
+    id: mcpserver-yaml
+    attributes:
+      label: MCPServer Resource YAML
+      description: Please provide the MCPServer custom resource configuration (remove sensitive data).
+      placeholder: |
+        apiVersion: mcp-gen.io.github.v2dy/v1
+        kind: MCPServer
+        metadata:
+          name: example
+        spec:
+          ...
+      render: yaml
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Controller Logs
+      description: |
+        Provide relevant logs from the controller manager.
+        Run: `kubectl logs -n operator-system deployment/operator-controller-manager`
+      placeholder: Paste controller logs here...
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: pod-logs
+    attributes:
+      label: Pod/Job Logs
+      description: If applicable, provide logs from the generated MCP server pods or build jobs.
+      placeholder: Paste pod/job logs here...
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where are you running the operator?
+      options:
+        - Local (Kind/Minikube)
+        - Cloud (EKS/GKE/AKS)
+        - On-premises
+        - Other
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here (screenshots, related issues, etc.).
+      placeholder: Any additional information that might be helpful...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched for existing issues before creating this bug report
+          required: true
+        - label: I have provided all the required information above
+          required: true
+        - label: I have removed any sensitive information from logs and configurations
+          required: true

@@ -53,7 +53,7 @@ func TestPrebuiltBuilder_GetImage(t *testing.T) {
 	}
 }
 
-func TestnewGenBuilder_GetImage(t *testing.T) {
+func TestNewGenBuilder_GetImage(t *testing.T) {
 	builder := &newGenBuilder{}
 
 	server := &mcpv1.MCPServer{

@@ -340,7 +340,7 @@ func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer
 
 	// Generate ToolServer name
 	toolServerName := mcpServer.Name + "-toolserver"
-	
+
 	// Create the desired ToolServer
 	desired := &kagentv1alpha1.ToolServer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -352,7 +352,7 @@ func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer
 				"app.kubernetes.io/component":  "kagent-integration",
 				"app.kubernetes.io/part-of":    "mcp-operator",
 				"app.kubernetes.io/managed-by": "mcp-operator",
-			"mcp.v2dy.github.io/mcpserver": mcpServer.Name,
+				"mcp.v2dy.github.io/mcpserver": mcpServer.Name,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -369,7 +369,7 @@ func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer
 			Config: kagentv1alpha1.ToolServerConfig{
 				StreamableHttp: &kagentv1alpha1.StreamableHttpServerConfig{
 					HttpToolServerConfig: kagentv1alpha1.HttpToolServerConfig{
-						URL: fmt.Sprintf("http://%s.%s.svc.cluster.local:3001/mcp", 
+						URL: fmt.Sprintf("http://%s.%s.svc.cluster.local:3001/mcp",
 							mcpServer.Name, mcpServer.Namespace),
 					},
 				},
@@ -402,10 +402,10 @@ func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer
 	if existing.Spec.Description != desired.Spec.Description ||
 		existing.Spec.Config.StreamableHttp == nil ||
 		existing.Spec.Config.StreamableHttp.URL != desired.Spec.Config.StreamableHttp.URL {
-		
+
 		existing.Spec = desired.Spec
 		existing.Labels = desired.Labels
-		
+
 		log.Info("Updating ToolServer", "toolserver", toolServerName)
 		if err := r.Update(ctx, existing); err != nil {
 			log.Error(err, "Failed to update ToolServer", "toolserver", toolServerName)
@@ -424,13 +424,13 @@ func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcp
 	// Generate Agent name (default to mcpserver name + "-agent" if not specified)
 	agentName := mcpServer.Name + "-agent"
 	agentNamespace := mcpServer.Namespace
-	
+
 	// Use custom name/namespace if specified in the AgentSpec
 	// Note: We can't directly access name/namespace from AgentSpec since it's embedded in the MCPServer
 	// The controller automatically manages the name and namespace
 
 	toolServerName := mcpServer.Name + "-toolserver"
-	
+
 	// Create the desired Agent spec
 	desired := &kagentv1alpha1.Agent{
 		ObjectMeta: metav1.ObjectMeta{
@@ -442,7 +442,7 @@ func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcp
 				"app.kubernetes.io/component":  "kagent-integration",
 				"app.kubernetes.io/part-of":    "mcp-operator",
 				"app.kubernetes.io/managed-by": "mcp-operator",
-			"mcp.v2dy.github.io/mcpserver": mcpServer.Name,
+				"mcp.v2dy.github.io/mcpserver": mcpServer.Name,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -494,7 +494,7 @@ func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcp
 	// We always update the tools to ensure they point to our ToolServer
 	existing.Spec = desired.Spec
 	existing.Labels = desired.Labels
-	
+
 	log.Info("Updating Agent", "agent", agentName)
 	if err := r.Update(ctx, existing); err != nil {
 		log.Error(err, "Failed to update Agent", "agent", agentName)

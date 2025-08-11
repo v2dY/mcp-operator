@@ -37,6 +37,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	kagentv1alpha1 "github.com/kagent-dev/kagent/go/controller/api/v1alpha1"
 	mcpv1 "github.com/v2dY/project/api/v1"
 	"github.com/v2dY/project/internal/controller"
 	// +kubebuilder:scaffold:imports
@@ -51,6 +52,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(mcpv1.AddToScheme(scheme))
+
+	utilruntime.Must(kagentv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

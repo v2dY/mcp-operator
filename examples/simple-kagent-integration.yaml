@@ -1,0 +1,21 @@
+---
+apiVersion: mcp.my.domain/v1
+kind: MCPServer
+metadata:
+  name: simple-weather-mcp
+  namespace: default
+spec:
+  url: "https://raw.githubusercontent.com/open-meteo/open-meteo/refs/heads/main/openapi.yml"
+  basePath: "https://api.open-meteo.com"
+  replicas: 1
+  # Kagent integration - the controller will automatically create:
+  # 1. ToolServer: simple-weather-mcp-toolserver 
+  # 2. Agent: simple-weather-mcp-agent
+  kagent:
+    description: "Weather data assistant"
+    modelConfig: "openai-gpt-4o"
+    systemMessage: |
+      You are a helpful weather assistant. You can help users get weather information 
+      using the available weather data tools. Always be helpful and provide clear explanations.
+    deployment:
+      replicas: 1

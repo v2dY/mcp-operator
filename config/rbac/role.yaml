@@ -62,6 +62,19 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - kagent.dev
+  resources:
+  - agents
+  - toolservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - mcp.my.domain
   resources:
   - mcpservers

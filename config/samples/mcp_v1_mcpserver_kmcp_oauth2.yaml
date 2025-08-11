@@ -4,7 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: project
     app.kubernetes.io/managed-by: kustomize
-  name: mcpserver-kmcp-oauth2-sample
+  name: mcpserver-mcp-oauth2-sample
 spec:
   legacy: false
   url: "https://api.example.com/openapi.json"

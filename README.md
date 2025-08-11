@@ -30,7 +30,7 @@ This approach is especially useful in agentic systems where an LLM-driven agent 
 Install the MCP operator using Helm:
 
 ```bash
-helm install mcp-operator oci://ghcr.io/v2dy/mcp-operator --version 0.2.0
+helm install mcp-operator oci://ghcr.io/v2dy/mcp-operator/helm-mcp-operator --version 0.2.0
 ```
 
 ## Quick Start
@@ -39,7 +39,7 @@ After installation, create an MCP server by applying this example:
 
 ```bash
 cat <<EOF | kubectl apply -f -
-apiVersion: mcp.my.domain/v1
+apiVersion: mcp.v2dy.github.io/v1
 kind: MCPServer
 metadata:
   namespace: default
@@ -260,7 +260,7 @@ For development purposes, you can use the locally generated installer after buil
 The project automatically generates and publishes Helm charts as OCI artifacts. Users can install using:
 
 ```sh
-helm install mcp-operator oci://ghcr.io/v2dy/mcp-operator --version <version>
+helm install mcp-operator oci://ghcr.io/v2dy/mcp-operator/helm-mcp-operator --version <version>
 ```
 
 The Helm chart is generated from the Kubernetes manifests and includes:

@@ -1,4 +1,4 @@
-apiVersion: mcp.my.domain/v1
+apiVersion: mcp.v2dy.github.io/v1
 kind: MCPServer
 metadata:
   namespace: default

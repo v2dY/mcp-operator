@@ -3,11 +3,11 @@ kind: Namespace
 metadata:
   name: mcp-demo
 ---
-apiVersion: mcp.my.domain/v1
+apiVersion: mcp.v2dy.github.io/v1
 kind: MCPServer
 metadata:
   namespace: mcp-demo
-  name: mcpserver-kmcp-apikey-secrets-sample
+  name: mcpserver-mcp-apikey-secrets-sample
 spec:
   url: "https://api.openaq.org/openapi.json"
   basePath: "https://api.openaq.org"

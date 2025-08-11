@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -44,9 +44,9 @@ type MCPServerReconciler struct {
 	statusManager   *StatusManager
 }
 
-// +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=mcp.my.domain,resources=mcpservers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=mcp.v2dy.github.io,resources=mcpservers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mcp.v2dy.github.io,resources=mcpservers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=mcp.v2dy.github.io,resources=mcpservers/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
@@ -352,7 +352,7 @@ func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer
 				"app.kubernetes.io/component":  "kagent-integration",
 				"app.kubernetes.io/part-of":    "mcp-operator",
 				"app.kubernetes.io/managed-by": "mcp-operator",
-				"mcp.my.domain/mcpserver":      mcpServer.Name,
+			"mcp.v2dy.github.io/mcpserver": mcpServer.Name,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -442,7 +442,7 @@ func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcp
 				"app.kubernetes.io/component":  "kagent-integration",
 				"app.kubernetes.io/part-of":    "mcp-operator",
 				"app.kubernetes.io/managed-by": "mcp-operator",
-				"mcp.my.domain/mcpserver":      mcpServer.Name,
+			"mcp.v2dy.github.io/mcpserver": mcpServer.Name,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{

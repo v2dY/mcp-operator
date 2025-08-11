@@ -3,19 +3,19 @@
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
 cliVersion: 4.6.0
-domain: my.domain
+domain: v2dy.github.io
 layout:
 - go.kubebuilder.io/v4
 projectName: operator
-repo: github.com/v2dY/project
+repo: github.com/v2dY/mcp-operator
 resources:
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: my.domain
+  domain: v2dy.github.io
   group: mcp
   kind: MCPServer
-  path: github.com/v2dY/project/api/v1
+  path: github.com/v2dY/mcp-operator/api/v1
   version: v1
 version: "3"

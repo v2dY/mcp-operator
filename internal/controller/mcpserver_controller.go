@@ -93,8 +93,8 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Phase 4: Handle Kagent integration (ToolServer and Agent)
-	if result, err := r.reconcileKagentPhase(ctx, mcpServer); err != nil || result.RequeueAfter > 0 {
-		return result, err
+	if err := r.reconcileKagentPhase(ctx, mcpServer); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Update final status
@@ -311,31 +311,31 @@ func (r *MCPServerReconciler) applyDeploymentChanges(ctx context.Context, mcpSer
 }
 
 // reconcileKagentPhase handles the Kagent integration phase
-func (r *MCPServerReconciler) reconcileKagentPhase(ctx context.Context, mcpServer *mcpv1.MCPServer) (ctrl.Result, error) {
+func (r *MCPServerReconciler) reconcileKagentPhase(ctx context.Context, mcpServer *mcpv1.MCPServer) error {
 	log := logf.FromContext(ctx)
 
 	// Skip if Kagent integration is not requested
 	if mcpServer.Spec.Kagent == nil {
-		return ctrl.Result{}, nil
+		return nil
 	}
 
 	log.Info("Reconciling Kagent integration", "mcpserver", mcpServer.Name)
 
 	// Phase 4a: Create/Update ToolServer
-	if result, err := r.reconcileToolServer(ctx, mcpServer); err != nil || result.RequeueAfter > 0 {
-		return result, err
+	if err := r.reconcileToolServer(ctx, mcpServer); err != nil {
+		return err
 	}
 
 	// Phase 4b: Create/Update Agent
-	if result, err := r.reconcileAgent(ctx, mcpServer); err != nil || result.RequeueAfter > 0 {
-		return result, err
+	if err := r.reconcileAgent(ctx, mcpServer); err != nil {
+		return err
 	}
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // reconcileToolServer creates or updates the ToolServer for Kagent integration
-func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer *mcpv1.MCPServer) (ctrl.Result, error) {
+func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer *mcpv1.MCPServer) error {
 	log := logf.FromContext(ctx)
 
 	// Generate ToolServer name
@@ -389,13 +389,13 @@ func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer
 		log.Info("Creating ToolServer", "toolserver", toolServerName)
 		if err := r.Create(ctx, desired); err != nil {
 			log.Error(err, "Failed to create ToolServer", "toolserver", toolServerName)
-			return ctrl.Result{}, err
+			return err
 		}
 		log.Info("Successfully created ToolServer", "toolserver", toolServerName)
-		return ctrl.Result{}, nil
+		return nil
 	} else if err != nil {
 		log.Error(err, "Failed to get ToolServer", "toolserver", toolServerName)
-		return ctrl.Result{}, err
+		return err
 	}
 
 	// Update existing ToolServer if needed
@@ -409,16 +409,16 @@ func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer
 		log.Info("Updating ToolServer", "toolserver", toolServerName)
 		if err := r.Update(ctx, existing); err != nil {
 			log.Error(err, "Failed to update ToolServer", "toolserver", toolServerName)
-			return ctrl.Result{}, err
+			return err
 		}
 		log.Info("Successfully updated ToolServer", "toolserver", toolServerName)
 	}
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // reconcileAgent creates or updates the Agent for Kagent integration
-func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcpv1.MCPServer) (ctrl.Result, error) {
+func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcpv1.MCPServer) error {
 	log := logf.FromContext(ctx)
 
 	// Generate Agent name (default to mcpserver name + "-agent" if not specified)
@@ -481,13 +481,13 @@ func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcp
 		log.Info("Creating Agent", "agent", agentName, "namespace", agentNamespace)
 		if err := r.Create(ctx, desired); err != nil {
 			log.Error(err, "Failed to create Agent", "agent", agentName)
-			return ctrl.Result{}, err
+			return err
 		}
 		log.Info("Successfully created Agent", "agent", agentName)
-		return ctrl.Result{}, nil
+		return nil
 	} else if err != nil {
 		log.Error(err, "Failed to get Agent", "agent", agentName)
-		return ctrl.Result{}, err
+		return err
 	}
 
 	// Update existing Agent if needed
@@ -498,11 +498,11 @@ func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcp
 	log.Info("Updating Agent", "agent", agentName)
 	if err := r.Update(ctx, existing); err != nil {
 		log.Error(err, "Failed to update Agent", "agent", agentName)
-		return ctrl.Result{}, err
+		return err
 	}
 	log.Info("Successfully updated Agent", "agent", agentName)
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

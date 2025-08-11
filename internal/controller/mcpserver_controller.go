@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	kagentv1alpha1 "github.com/kagent-dev/kagent/go/controller/api/v1alpha1"
 	mcpv1 "github.com/v2dY/project/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -49,6 +50,8 @@ type MCPServerReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=kagent.dev,resources=toolservers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kagent.dev,resources=agents,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get
@@ -86,6 +89,11 @@ func (r *MCPServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// Phase 3: Handle service
 	if result, err := r.reconcileServicePhase(ctx, mcpServer); err != nil || result.RequeueAfter > 0 {
+		return result, err
+	}
+
+	// Phase 4: Handle Kagent integration (ToolServer and Agent)
+	if result, err := r.reconcileKagentPhase(ctx, mcpServer); err != nil || result.RequeueAfter > 0 {
 		return result, err
 	}
 
@@ -302,6 +310,201 @@ func (r *MCPServerReconciler) applyDeploymentChanges(ctx context.Context, mcpSer
 	return ctrl.Result{RequeueAfter: shortRequeue}, nil
 }
 
+// reconcileKagentPhase handles the Kagent integration phase
+func (r *MCPServerReconciler) reconcileKagentPhase(ctx context.Context, mcpServer *mcpv1.MCPServer) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Skip if Kagent integration is not requested
+	if mcpServer.Spec.Kagent == nil {
+		return ctrl.Result{}, nil
+	}
+
+	log.Info("Reconciling Kagent integration", "mcpserver", mcpServer.Name)
+
+	// Phase 4a: Create/Update ToolServer
+	if result, err := r.reconcileToolServer(ctx, mcpServer); err != nil || result.RequeueAfter > 0 {
+		return result, err
+	}
+
+	// Phase 4b: Create/Update Agent
+	if result, err := r.reconcileAgent(ctx, mcpServer); err != nil || result.RequeueAfter > 0 {
+		return result, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// reconcileToolServer creates or updates the ToolServer for Kagent integration
+func (r *MCPServerReconciler) reconcileToolServer(ctx context.Context, mcpServer *mcpv1.MCPServer) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Generate ToolServer name
+	toolServerName := mcpServer.Name + "-toolserver"
+	
+	// Create the desired ToolServer
+	desired := &kagentv1alpha1.ToolServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      toolServerName,
+			Namespace: mcpServer.Namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "toolserver",
+				"app.kubernetes.io/instance":   toolServerName,
+				"app.kubernetes.io/component":  "kagent-integration",
+				"app.kubernetes.io/part-of":    "mcp-operator",
+				"app.kubernetes.io/managed-by": "mcp-operator",
+				"mcp.my.domain/mcpserver":      mcpServer.Name,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: mcpServer.APIVersion,
+					Kind:       mcpServer.Kind,
+					Name:       mcpServer.Name,
+					UID:        mcpServer.UID,
+					Controller: &[]bool{true}[0],
+				},
+			},
+		},
+		Spec: kagentv1alpha1.ToolServerSpec{
+			Description: fmt.Sprintf("ToolServer for MCP Server %s", mcpServer.Name),
+			Config: kagentv1alpha1.ToolServerConfig{
+				StreamableHttp: &kagentv1alpha1.StreamableHttpServerConfig{
+					HttpToolServerConfig: kagentv1alpha1.HttpToolServerConfig{
+						URL: fmt.Sprintf("http://%s.%s.svc.cluster.local:3001/mcp", 
+							mcpServer.Name, mcpServer.Namespace),
+					},
+				},
+			},
+		},
+	}
+
+	// Check if ToolServer already exists
+	existing := &kagentv1alpha1.ToolServer{}
+	err := r.Get(ctx, types.NamespacedName{
+		Name:      toolServerName,
+		Namespace: mcpServer.Namespace,
+	}, existing)
+
+	if err != nil && apierrors.IsNotFound(err) {
+		// Create new ToolServer
+		log.Info("Creating ToolServer", "toolserver", toolServerName)
+		if err := r.Create(ctx, desired); err != nil {
+			log.Error(err, "Failed to create ToolServer", "toolserver", toolServerName)
+			return ctrl.Result{}, err
+		}
+		log.Info("Successfully created ToolServer", "toolserver", toolServerName)
+		return ctrl.Result{}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get ToolServer", "toolserver", toolServerName)
+		return ctrl.Result{}, err
+	}
+
+	// Update existing ToolServer if needed
+	if existing.Spec.Description != desired.Spec.Description ||
+		existing.Spec.Config.StreamableHttp == nil ||
+		existing.Spec.Config.StreamableHttp.URL != desired.Spec.Config.StreamableHttp.URL {
+		
+		existing.Spec = desired.Spec
+		existing.Labels = desired.Labels
+		
+		log.Info("Updating ToolServer", "toolserver", toolServerName)
+		if err := r.Update(ctx, existing); err != nil {
+			log.Error(err, "Failed to update ToolServer", "toolserver", toolServerName)
+			return ctrl.Result{}, err
+		}
+		log.Info("Successfully updated ToolServer", "toolserver", toolServerName)
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// reconcileAgent creates or updates the Agent for Kagent integration
+func (r *MCPServerReconciler) reconcileAgent(ctx context.Context, mcpServer *mcpv1.MCPServer) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Generate Agent name (default to mcpserver name + "-agent" if not specified)
+	agentName := mcpServer.Name + "-agent"
+	agentNamespace := mcpServer.Namespace
+	
+	// Use custom name/namespace if specified in the AgentSpec
+	// Note: We can't directly access name/namespace from AgentSpec since it's embedded in the MCPServer
+	// The controller automatically manages the name and namespace
+
+	toolServerName := mcpServer.Name + "-toolserver"
+	
+	// Create the desired Agent spec
+	desired := &kagentv1alpha1.Agent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      agentName,
+			Namespace: agentNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "agent",
+				"app.kubernetes.io/instance":   agentName,
+				"app.kubernetes.io/component":  "kagent-integration",
+				"app.kubernetes.io/part-of":    "mcp-operator",
+				"app.kubernetes.io/managed-by": "mcp-operator",
+				"mcp.my.domain/mcpserver":      mcpServer.Name,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: mcpServer.APIVersion,
+					Kind:       mcpServer.Kind,
+					Name:       mcpServer.Name,
+					UID:        mcpServer.UID,
+					Controller: &[]bool{true}[0],
+				},
+			},
+		},
+		Spec: *mcpServer.Spec.Kagent.DeepCopy(), // Copy the AgentSpec from MCPServer
+	}
+
+	// Automatically set the tools to reference our auto-generated ToolServer
+	// Override any existing tools configuration to ensure it points to our ToolServer
+	desired.Spec.Tools = []*kagentv1alpha1.Tool{
+		{
+			Type: kagentv1alpha1.ToolProviderType_McpServer,
+			McpServer: &kagentv1alpha1.McpServerTool{
+				ToolServer: fmt.Sprintf("%s/%s", mcpServer.Namespace, toolServerName),
+				ToolNames:  []string{}, // Empty means all tools
+			},
+		},
+	}
+
+	// Check if Agent already exists
+	existing := &kagentv1alpha1.Agent{}
+	err := r.Get(ctx, types.NamespacedName{
+		Name:      agentName,
+		Namespace: agentNamespace,
+	}, existing)
+
+	if err != nil && apierrors.IsNotFound(err) {
+		// Create new Agent
+		log.Info("Creating Agent", "agent", agentName, "namespace", agentNamespace)
+		if err := r.Create(ctx, desired); err != nil {
+			log.Error(err, "Failed to create Agent", "agent", agentName)
+			return ctrl.Result{}, err
+		}
+		log.Info("Successfully created Agent", "agent", agentName)
+		return ctrl.Result{}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get Agent", "agent", agentName)
+		return ctrl.Result{}, err
+	}
+
+	// Update existing Agent if needed
+	// We always update the tools to ensure they point to our ToolServer
+	existing.Spec = desired.Spec
+	existing.Labels = desired.Labels
+	
+	log.Info("Updating Agent", "agent", agentName)
+	if err := r.Update(ctx, existing); err != nil {
+		log.Error(err, "Failed to update Agent", "agent", agentName)
+		return ctrl.Result{}, err
+	}
+	log.Info("Successfully updated Agent", "agent", agentName)
+
+	return ctrl.Result{}, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *MCPServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Initialize managers
@@ -314,5 +517,7 @@ func (r *MCPServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&batchv1.Job{}).
+		Owns(&kagentv1alpha1.ToolServer{}).
+		Owns(&kagentv1alpha1.Agent{}).
 		Complete(r)
 }

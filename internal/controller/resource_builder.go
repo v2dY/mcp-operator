@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	KMCPImage     = "ghcr.io/v2dy/mcp-gen:0.1.0"
+	newGenImage     = "ghcr.io/v2dy/mcp-gen:0.1.0"
 	PrebuiltImage = "sarco3t/openapi-mcp-generator:1.0.6"
 	ContainerPort = 3001
 )
@@ -52,10 +52,10 @@ func (b *BuildahBuilder) GetImage(mcpServer *mcpv1.MCPServer) (string, error) {
 	return fmt.Sprintf("%s/mcp-server:%s", mcpServer.Spec.Registry, mcpServer.Name), nil
 }
 
-type KMCPBuilder struct{}
+type newGenBuilder struct{}
 
-func (k *KMCPBuilder) GetImage(mcpServer *mcpv1.MCPServer) (string, error) {
-	return KMCPImage, nil
+func (k *newGenBuilder) GetImage(mcpServer *mcpv1.MCPServer) (string, error) {
+	return newGenImage, nil
 }
 
 type ResourceBuilder struct {
@@ -78,7 +78,7 @@ func (rb *ResourceBuilder) BuildDeployment(mcpServer *mcpv1.MCPServer) (*appsv1.
 
 	if mcpServer.Spec.Registry == "" {
 		if !isLegacy {
-			builder = &KMCPBuilder{}
+			builder = &newGenBuilder{}
 		} else {
 			builder = &PrebuiltBuilder{}
 		}
@@ -269,7 +269,7 @@ func (rb *ResourceBuilder) resolveValueOrSecret(valueOrSecret *mcpv1.ValueOrSecr
 	}
 
 	return "", nil
-} // buildAuthArgs builds authentication arguments for kmcp command (deprecated, use buildAuthArgsAndEnv)
+} // buildAuthArgs builds authentication arguments for new gen command (deprecated, use buildAuthArgsAndEnv)
 func (rb *ResourceBuilder) buildAuthArgs(auth *mcpv1.AuthConfig) []string {
 	args, _ := rb.buildAuthArgsAndEnv(auth)
 	return args

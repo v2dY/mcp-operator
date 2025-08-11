@@ -21,6 +21,7 @@ limitations under the License.
 package v1
 
 import (
+	"github.com/kagent-dev/kagent/go/controller/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -228,6 +229,11 @@ func (in *MCPServerSpec) DeepCopyInto(out *MCPServerSpec) {
 	if in.PodTemplate != nil {
 		in, out := &in.PodTemplate, &out.PodTemplate
 		*out = new(PodTemplateConfig)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Kagent != nil {
+		in, out := &in.Kagent, &out.Kagent
+		*out = new(v1alpha1.AgentSpec)
 		(*in).DeepCopyInto(*out)
 	}
 }

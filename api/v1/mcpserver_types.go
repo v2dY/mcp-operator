@@ -19,6 +19,8 @@ package v1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	kagentv1alpha1 "github.com/kagent-dev/kagent/go/controller/api/v1alpha1"
 )
 
 type PodTemplateConfig struct {
@@ -156,6 +158,8 @@ type MCPServerSpec struct {
 	Env []corev1.EnvVar `json:"env,omitempty"` // backward compatibility
 	// +optional
 	PodTemplate *PodTemplateConfig `json:"podTemplate,omitempty"`
+	// +optional
+	Kagent *kagentv1alpha1.AgentSpec `json:"kagent,omitempty"`
 }
 
 type MCPServerStatus struct {

@@ -53,8 +53,8 @@ func TestPrebuiltBuilder_GetImage(t *testing.T) {
 	}
 }
 
-func TestKMCPBuilder_GetImage(t *testing.T) {
-	builder := &KMCPBuilder{}
+func TestnewGenBuilder_GetImage(t *testing.T) {
+	builder := &newGenBuilder{}
 
 	server := &mcpv1.MCPServer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -67,7 +67,7 @@ func TestKMCPBuilder_GetImage(t *testing.T) {
 
 	image, err := builder.GetImage(server)
 	assert.NoError(t, err)
-	assert.Equal(t, KMCPImage, image)
+	assert.Equal(t, newGenImage, image)
 }
 
 func TestResourceBuilder_buildAuthArgs(t *testing.T) {
@@ -196,7 +196,7 @@ func TestResourceBuilder_buildContainer(t *testing.T) {
 			expectedArgsPrefix: []string{"https://api.example.com/openapi.json", "/api/v1"},
 		},
 		{
-			name: "non-legacy mode with kmcp image",
+			name: "non-legacy mode with new image image",
 			server: &mcpv1.MCPServer{
 				Spec: mcpv1.MCPServerSpec{
 					Legacy:   ptr.To(false),
@@ -204,7 +204,7 @@ func TestResourceBuilder_buildContainer(t *testing.T) {
 					BasePath: "/api/v1",
 				},
 			},
-			image:              KMCPImage,
+			image:              newGenImage,
 			expectedCommand:    nil,
 			expectedArgsPrefix: []string{"generate", "--path", "https://api.example.com/openapi.json", "--host", "0.0.0.0", "--port", "3001", "--base-url", "/api/v1"},
 		},
@@ -224,7 +224,7 @@ func TestResourceBuilder_buildContainer(t *testing.T) {
 					},
 				},
 			},
-			image:              KMCPImage,
+			image:              newGenImage,
 			expectedCommand:    nil,
 			expectedArgsPrefix: []string{"generate", "--path", "https://api.example.com/openapi.json", "--host", "0.0.0.0", "--port", "3001", "--auth-type", "basic", "--basic-username", "user", "--basic-password", "pass"},
 		},

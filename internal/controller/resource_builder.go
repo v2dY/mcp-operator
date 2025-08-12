@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	newGenImage   = "ghcr.io/v2dy/mcp-gen:0.3.3"
+	newGenImage   = "ghcr.io/v2dy/mcp-gen:0.3.0"
 	PrebuiltImage = "sarco3t/openapi-mcp-generator:1.0.6"
 	ContainerPort = 3001
 )

@@ -132,7 +132,6 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          dist/install.yaml
           dist/*.tgz
           dist/checksums.txt
         generate_release_notes: true
